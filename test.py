@@ -3,7 +3,7 @@ import solver1d as sol
 import matplotlib.pyplot as plt
 from AnimationController import ControlledAnimation
 
-plt.style.use('dark_background')
+plt.style.use('bmh')
 np.set_printoptions(linewidth=250)
 
 """
@@ -14,7 +14,7 @@ DOF = 6
 
 MAX_ITER = 100  # Max newton raphson iteration
 element_type = 2
-L = 1
+L = 100
 numberOfElements = 20
 
 icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
@@ -38,19 +38,19 @@ i0 = np.pi * d ** 4 / 64
 J = i0 * 2
 EI = 3.5 * 10 ** 7
 GA = 1.6 * 10 ** 8
-ElasticityExtension = np.array([[G0 * A, 0, 0],
-                                [0, G0 * A, 0],
-                                [0, 0, E0 * A]])
-ElasticityBending = np.array([[E0 * i0, 0, 0],
-                              [0, E0 * i0, 0],
-                              [0, 0, G0 * J]])
+# ElasticityExtension = np.array([[G0 * A, 0, 0],
+#                                 [0, G0 * A, 0],
+#                                 [0, 0, E0 * A]])
+# ElasticityBending = np.array([[E0 * i0, 0, 0],
+#                               [0, E0 * i0, 0],
+#                               [0, 0, G0 * J]])
 
-# ElasticityExtension = np.array([[GA, 0, 0],
-#                                 [0, GA, 0],
-#                                 [0, 0, 2 * GA]])
-# ElasticityBending = np.array([[EI, 0, 0],
-#                               [0, EI, 0],
-#                               [0, 0, 0.5 * EI]])
+ElasticityExtension = np.array([[GA, 0, 0],
+                                [0, GA, 0],
+                                [0, 0, 2 * GA]])
+ElasticityBending = np.array([[EI, 0, 0],
+                              [0, EI, 0],
+                              [0, 0, 0.5 * EI]])
 
 """
 Starting point
@@ -89,17 +89,17 @@ for i in range(numberOfNodes):
 """
 Initialize Graph
 """
-fig, ax = plt.subplots(1, 1, figsize=(9, 9))
+fig, (ax, ay) = plt.subplots(1, 2, figsize=(16, 5),  width_ratios=[1, 2])
 ax.set_xlim(0, L)
 ax.plot(r3, r2, label="un-deformed", marker="o")
 
 """
 Set load and load steps
 """
-max_load = 2 * np.pi * E0 * i0 / L
-# max_load = 30 * E0 * i0
-LOAD_INCREMENTS = 401
-fapp__ = np.linspace(0, max_load, LOAD_INCREMENTS)
+# max_load = 2 * np.pi * E0 * i0 / L
+max_load = 130000
+LOAD_INCREMENTS = 131
+fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 
 """
 Main loop
@@ -121,8 +121,8 @@ def fea(load_iter_, is_halt=False):
     for iter_ in range(MAX_ITER):
         KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
 
-        s = sol.get_rotation_from_theta_tensor(u[-3:, 0]) @ np.array([0, fapp__[load_iter_], 0])[:, None] * 0
-        FG[-3] = fapp__[load_iter_]
+        s = sol.get_rotation_from_theta_tensor(u[-3:, 0]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
+        FG[-6: -3] = s
 
         # print(u[6 * vii + 3, 0] * 180 / np.pi)
         # FG[-3, 0] = -fapp__[load_iter_]
@@ -213,8 +213,8 @@ def fea(load_iter_, is_halt=False):
 u = np.zeros((numberOfNodes * DOF, 1))
 u[6 * vi + 2, 0] = node_data
 
-marker_ = np.linspace(0, max_load, LOAD_INCREMENTS)
-
+marker_ = np.linspace(0, max_load, 6)
+marker_ = np.insert(marker_, 0, 5000, axis=0)
 """
 ------------------------------------------------------------------------------------------------------------------------------------
 Post Processing
@@ -229,7 +229,7 @@ ymax = 1e-7
 xmin = 0
 ymin = 0
 
-video_request = True
+video_request = False
 
 
 def act(i):
@@ -238,13 +238,14 @@ def act(i):
     global ymax
     global xmin
     global ymin
+    global video_request
     halt = fea(i)
     if halt:
         controlled_animation.stop()
         return
-    if np.isclose(fapp__[i], marker_).any():
-        y0 = u[DOF * vi + 1, 0]
-        x0 = u[DOF * vi + 2, 0]
+    y0 = u[DOF * vi + 1, 0]
+    x0 = u[DOF * vi + 2, 0]
+    if np.isclose(abs(fapp__[i]), marker_).any():
         xmax, ymax = max(xmax, np.max(x0)), max(np.max(y0), ymax)
         xmin, ymin = min(xmin, np.min(x0)), min(np.min(y0), ymin)
         ax.axis('equal')
@@ -253,18 +254,28 @@ def act(i):
 
         line1.set_ydata(y0)
         line1.set_xdata(x0)
+        ax.text(x0[-5], y0[-5], "load : " + str(round(fapp__[i] / 1000, 2)) + "k", bbox={'facecolor': 'white', 'alpha': 0.6, 'pad': 2})
         if not video_request:
             ax.plot(x0, y0)
+    if i == 0:
+        ay.legend()
+    ay.scatter(abs(fapp__[i]), -u[-4, 0] + L, marker=".", label="vertical tip displacement")
+    ay.scatter(abs(fapp__[i]), u[-5, 0], marker="+", label="horizontal tip displacement")
 
 
+ay.axhline(y=0)
+ay.set_xlabel(r"LOAD", fontsize=12)
+ay.set_ylabel(r"Tip Displacement", fontsize=12)
 ax.set_xlabel(r"$r_3$", fontsize=30)
 ax.set_ylabel(r"$r_2$", fontsize=30)
-plt.xticks(fontsize=20)
-plt.yticks(fontsize=20)
+plt.xticks(fontsize=13)
+plt.yticks(fontsize=13)
 ax.set_ylim(-85, 41)
 y = u[DOF * vi + 1, 0]
 x = u[DOF * vi + 2, 0]
 line1, = ax.plot(x, y)
+ax.set_title("Centerline displacement")
+ay.set_title("Tip Displacement vs load")
 controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False)
 controlled_animation.start()
 print(max_load * L / GA / 2, u[-6:])
