@@ -260,8 +260,8 @@ def act(i):
             ax.plot(x0, y0)
     if i == 0:
         ay.legend()
-    ay.scatter(abs(fapp__[i]), -u[-4, 0] + L, marker=".", label="vertical tip displacement")
-    ay.scatter(abs(fapp__[i]), u[-5, 0], marker="+", label="horizontal tip displacement")
+    ay.scatter(abs(fapp__[i]), -u[-4, 0] + L, marker=".", label="horizontal tip displacement")
+    ay.scatter(abs(fapp__[i]), u[-5, 0], marker="+", label="vertical tip displacement")
 
 
 ay.axhline(y=0)
