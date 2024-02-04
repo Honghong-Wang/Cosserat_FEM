@@ -4,6 +4,14 @@ Newton raphson is used as ilterative process, Refer to [lectures](https://www.yo
 
 ## Examples
 
+#### Follower Load
+
+**Example from 7.3** from [Simo (1986)](https://doi.org/10.1016/0045-7825(86)90079-4) 
+
+![Figure_1](https://github.com/notcamelcase01/CosseratRods/assets/26081294/fecb631b-b4d8-43dd-88ee-756d17d48032)
+
+
+
 #### Pure Bending
 
 https://github.com/notcamelcase01/CosseratRods/assets/26081294/32bf6937-4fb5-402b-9049-02d68c7142f6
