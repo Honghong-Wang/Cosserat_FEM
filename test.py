@@ -2,8 +2,9 @@ import numpy as np
 import solver1d as sol
 import matplotlib.pyplot as plt
 from AnimationController import ControlledAnimation
+import scienceplots
 
-plt.style.use('bmh')
+plt.style.use(['science'])
 np.set_printoptions(linewidth=250)
 
 """
@@ -264,12 +265,12 @@ def act(i):
 
 
 ay.axhline(y=0)
-ay.set_xlabel(r"LOAD", fontsize=12)
-ay.set_ylabel(r"Tip Displacement", fontsize=12)
-ax.set_xlabel(r"$r_3$", fontsize=30)
-ax.set_ylabel(r"$r_2$", fontsize=30)
-plt.xticks(fontsize=13)
-plt.yticks(fontsize=13)
+ay.set_xlabel(r"LOAD")
+ay.set_ylabel(r"Tip Displacement")
+ax.set_xlabel(r"$r_3$")
+ax.set_ylabel(r"$r_2$")
+plt.xticks()
+plt.yticks()
 ax.set_ylim(-85, 41)
 y = u[DOF * vi + 1, 0]
 x = u[DOF * vi + 2, 0]

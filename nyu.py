@@ -2,8 +2,9 @@ import numpy as np
 import solver1d as sol
 import matplotlib.pyplot as plt
 from AnimationController import ControlledAnimation
+import scienceplots
 
-plt.style.use('dark_background')
+plt.style.use(['science'])
 np.set_printoptions(linewidth=250)
 
 """
@@ -98,7 +99,7 @@ Set load and load steps
 """
 max_load = 2 * np.pi * E0 * i0 / L
 # max_load = 30 * E0 * i0
-LOAD_INCREMENTS = 401
+LOAD_INCREMENTS = 101
 fapp__ = np.linspace(0, max_load, LOAD_INCREMENTS)
 
 """
@@ -229,7 +230,7 @@ ymax = 1e-7
 xmin = 0
 ymin = 0
 
-video_request = True
+video_request = False
 
 
 def act(i):
