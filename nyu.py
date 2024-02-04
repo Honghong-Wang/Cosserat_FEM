@@ -3,6 +3,7 @@ import solver1d as sol
 import matplotlib.pyplot as plt
 from AnimationController import ControlledAnimation
 
+plt.style.use('dark_background')
 np.set_printoptions(linewidth=250)
 
 """
@@ -95,11 +96,10 @@ ax.plot(r3, r2, label="un-deformed", marker="o")
 """
 Set load and load steps
 """
-# max_load  = 2 * np.pi * E0 * i0 / L
-max_load = 30 * E0 * i0
-LOAD_INCREMENTS = 101
+max_load  = 2 * np.pi * E0 * i0 / L
+# max_load = 30 * E0 * i0
+LOAD_INCREMENTS = 401
 fapp__ = np.linspace(0, max_load, LOAD_INCREMENTS)
-
 
 """
 Main loop
@@ -121,8 +121,8 @@ def fea(load_iter_, is_halt=False):
     for iter_ in range(MAX_ITER):
         KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
 
-        s = sol.get_rotation_from_theta_tensor(u[-3:, 0]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
-        FG[-6:-3] = s
+        s = sol.get_rotation_from_theta_tensor(u[-3:, 0]) @ np.array([0, fapp__[load_iter_], 0])[:, None] * 0
+        FG[-3] = fapp__[load_iter_]
 
         # print(u[6 * vii + 3, 0] * 180 / np.pi)
         # FG[-3, 0] = -fapp__[load_iter_]
@@ -140,13 +140,10 @@ def fea(load_iter_, is_halt=False):
                 N_, Bmat = sol.get_lagrange_fn(gp[xgp], element_type)
                 J = (xloc.T @ Bmat)[0][0]
                 Nx_ = 1 / J * Bmat
-                r = rloc @ N_
                 t = tloc @ N_
-                dr = rloc @ N_
                 dt = dtloc @ N_
                 tds = tloc @ Nx_
                 rds = rloc @ Nx_
-                drds = drloc @ Nx_
                 dtds = dtloc @ Nx_
 
                 Rot = sol.get_rotation_from_theta_tensor(t)
@@ -219,7 +216,6 @@ u[6 * vi + 2, 0] = node_data
 
 marker_ = np.linspace(0, max_load, LOAD_INCREMENTS)
 
-
 """
 ------------------------------------------------------------------------------------------------------------------------------------
 Post Processing
@@ -234,6 +230,8 @@ ymax = 1e-7
 xmin = 0
 ymin = 0
 
+video_request = True
+
 
 def act(i):
     global u
@@ -245,7 +243,6 @@ def act(i):
     if halt:
         controlled_animation.stop()
         return
-    # if i % 4 == 0:
     if np.isclose(fapp__[i], marker_).any():
         y = u[DOF * vi + 1, 0]
         x = u[DOF * vi + 2, 0]
@@ -257,8 +254,8 @@ def act(i):
 
         line1.set_ydata(y)
         line1.set_xdata(x)
-
-        ax.plot(x, y)
+        if not video_request:
+            ax.plot(x, y)
 
 
 ax.set_xlabel(r"$r_3$", fontsize=30)
@@ -269,6 +266,6 @@ ax.set_ylim(-85, 41)
 y = u[DOF * vi + 1, 0]
 x = u[DOF * vi + 2, 0]
 line1, = ax.plot(x, y)
-controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), repeat=False)
+controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False)
 controlled_animation.start()
 print(max_load * L / GA / 2, u[-6:])
