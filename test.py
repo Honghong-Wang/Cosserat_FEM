@@ -215,7 +215,7 @@ u = np.zeros((numberOfNodes * DOF, 1))
 u[6 * vi + 2, 0] = node_data
 
 marker_ = np.linspace(0, max_load, 6)
-marker_ = np.insert(marker_, 0, [2000, 6000, 10000], axis=0)
+marker_ = np.insert(marker_, 0, [2000, 6000, 12000], axis=0)
 """
 ------------------------------------------------------------------------------------------------------------------------------------
 Post Processing
@@ -265,12 +265,10 @@ def act(i):
 
 
 ay.axhline(y=0)
-ay.set_xlabel(r"LOAD")
-ay.set_ylabel(r"Tip Displacement")
-ax.set_xlabel(r"$r_3$")
-ax.set_ylabel(r"$r_2$")
-plt.xticks()
-plt.yticks()
+ay.set_xlabel(r"LOAD", fontsize=16)
+ay.set_ylabel(r"Tip Displacement", fontsize=16)
+ax.set_xlabel(r"$r_3$", fontsize=30)
+ax.set_ylabel(r"$r_2$", fontsize=30)
 ax.set_ylim(-85, 41)
 y = u[DOF * vi + 1, 0]
 x = u[DOF * vi + 2, 0]
