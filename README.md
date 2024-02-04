@@ -8,8 +8,8 @@ Newton raphson is used as ilterative process, Refer to [lectures](https://www.yo
 
 **Example from 7.3** from [Simo (1986)](https://doi.org/10.1016/0045-7825(86)90079-4) 
 
-![Figure_1](https://github.com/notcamelcase01/CosseratRods/assets/26081294/fecb631b-b4d8-43dd-88ee-756d17d48032)
 
+![Figure_1](https://github.com/notcamelcase01/CosseratRods/assets/26081294/caa9ae60-ad5d-40b1-bfa7-f54909bc65a7)
 
 
 #### Pure Bending
