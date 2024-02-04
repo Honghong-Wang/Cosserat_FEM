@@ -215,7 +215,7 @@ u = np.zeros((numberOfNodes * DOF, 1))
 u[6 * vi + 2, 0] = node_data
 
 marker_ = np.linspace(0, max_load, 6)
-marker_ = np.insert(marker_, 0, 5000, axis=0)
+marker_ = np.insert(marker_, 0, [2000, 6000, 10000], axis=0)
 """
 ------------------------------------------------------------------------------------------------------------------------------------
 Post Processing
