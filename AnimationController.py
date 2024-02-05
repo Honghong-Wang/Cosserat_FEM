@@ -12,7 +12,8 @@ class ControlledAnimation:
         self.video_request = video_request
         self.ani = animation.FuncAnimation(self.figc, self.animate, frames=self.frames, interval=self.interval,
                                            repeat=self.repeat)
-        self.pause = False
+        self.m_pause = False
+        self.cid = self.figc.canvas.mpl_connect('button_press_event', self.pause)
 
     def start(self):
         if self.video_request:
@@ -24,9 +25,9 @@ class ControlledAnimation:
     def stop(self):
         self.ani.event_source.stop()
 
-    def pause(self):
-        self.pause ^= True
-        if not self.pause:
+    def pause(self, event):
+        self.m_pause ^= True
+        if not self.m_pause:
             print("halted")
             self.ani.event_source.stop()
         else:
