@@ -2,6 +2,23 @@
 
 Newton raphson is used as ilterative process, Refer to [lectures](https://www.youtube.com/watch?v=yREiLRTtoy4&list=PLqDNYu0I0krGSXpClGU5ZVsVXSIr13q2F) for more details.
 
+### Libraries
+**Essentials**
+- numpy
+- matplotlib
+
+**Optional**
+
+Remove these lines from `nyu` or `test` if you don't want optional files
+```
+import scienceplots
+
+plt.style.use(['science'])
+```
+- latex (pip install latex)
+- [SciencePlots](https://pypi.org/project/SciencePlots/)
+- Install [Mitex](https://miktex.org/download) locally add `$\pdftotex.exe` location to PATH variable of user/system
+
 ## Examples
 
 #### Follower Load
