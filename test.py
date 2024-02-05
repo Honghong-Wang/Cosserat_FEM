@@ -191,7 +191,7 @@ def fea(load_iter_, is_halt=False):
             break
 
         """
-        Configuration update (not working as of now) for angles greater than 360 deg
+        Configuration update (not working as of now) for angles greater than 360 deg, Make this work for multi-axis rotations
         """
         # for i in range(numberOfNodes):
         #     xxx = sol.get_theta_from_rotation(
@@ -204,7 +204,7 @@ def fea(load_iter_, is_halt=False):
         """
         Approx. configuration update
         """
-        # TODO: Change this, this is working fine but numerically it is not the best way
+        # TODO: Change this, this is working fine but numerically it is not the best way, it works perfectly if two rotations are about one axis
         u += du
 
     print(residue_norm, increments_norm)
