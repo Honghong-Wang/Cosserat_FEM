@@ -256,6 +256,8 @@ def act(i):
         line1.set_xdata(x0)
         if not video_request:
             ax.plot(x0, y0)
+        if i == LOAD_INCREMENTS - 1:
+            controlled_animation.disconnect()
 
 
 ax.set_xlabel(r"$r_3$", fontsize=30)

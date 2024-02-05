@@ -262,6 +262,8 @@ def act(i):
         ay.legend()
     ay.scatter(abs(fapp__[i]), -u[-4, 0] + L, marker=".", label="horizontal tip displacement")
     ay.scatter(abs(fapp__[i]), u[-5, 0], marker="+", label="vertical tip displacement")
+    if i == LOAD_INCREMENTS - 1:
+        controlled_animation.disconnect()
 
 
 ay.axhline(y=0)

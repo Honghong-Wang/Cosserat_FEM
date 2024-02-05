@@ -32,3 +32,6 @@ class ControlledAnimation:
             self.ani.event_source.stop()
         else:
             self.ani.event_source.start()
+
+    def disconnect(self):
+        self.figc.canvas.mpl_disconnect(self.cid)
