@@ -1,6 +1,6 @@
 # Cosserat Rod FEM
 
-Newton raphson is used as ilterative process, Refer to [lectures](https://www.youtube.com/watch?v=yREiLRTtoy4&list=PLqDNYu0I0krGSXpClGU5ZVsVXSIr13q2F) for more details.
+Newton raphson is used as iterative process, Refer to [lectures](https://www.youtube.com/watch?v=yREiLRTtoy4&list=PLqDNYu0I0krGSXpClGU5ZVsVXSIr13q2F) for more details.
 
 ### Libraries
 **Essentials**
@@ -9,7 +9,7 @@ Newton raphson is used as ilterative process, Refer to [lectures](https://www.yo
 
 **Optional**
 
-Remove these lines from `nyu` or `test` if you don't want optional files
+Remove these lines from `nyu`, `main` or `test` if you don't want optional files
 ```
 import scienceplots
 
@@ -17,8 +17,8 @@ plt.style.use(['science'])
 ```
 - latex (pip install latex)
 - [SciencePlots](https://pypi.org/project/SciencePlots/)
-- Install [Mitex](https://miktex.org/download) locally add `$\pdftotex.exe` location to PATH variable of user/system
-
+- Install [MiKtex](https://miktex.org/download) locally add `$\pdftotex.exe` location to PATH variable of user/system
+- [tqdm](https://pypi.org/project/tqdm/), if you're not installing this remove its dependencies in `AnimationController.py`
 ## Examples
 
 #### Follower Load

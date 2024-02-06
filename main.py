@@ -122,8 +122,7 @@ def fea(load_iter_, is_halt=False):
     global du
     global residue_norm
     global increments_norm
-    print("--------------------------------------------------------------------------------------------------------------------------------------------------",
-          fapp__[load_iter_], load_iter_)
+    global progress_bar_request
     for iter_ in range(MAX_ITER):
         KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
         # Follower load
@@ -192,7 +191,11 @@ def fea(load_iter_, is_halt=False):
         # TODO: Change this, this is working fine but numerically it is not the best way, it works perfectly if two rotations are about one axis
         u += du
 
-    print(residue_norm, increments_norm)
+    if not progress_bar_request:
+        print(
+            "--------------------------------------------------------------------------------------------------------------------------------------------------",
+            fapp__[load_iter_], load_iter_)
+        print(residue_norm, increments_norm)
     return is_halt
 
 
@@ -216,6 +219,7 @@ xmin = 0
 ymin = 0
 
 video_request = False
+progress_bar_request = False  # Making it 1 will disable logging of residue after convergence
 
 
 def act(i):
@@ -264,6 +268,6 @@ x = u[DOF * vi + 2, 0]
 line1, = ax.plot(x, y)
 ax.set_title("Centerline displacement")
 ay.set_title("Tip Displacement vs Load")
-controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False)
+controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False, progress_bar=progress_bar_request)
 controlled_animation.start()
 print(max_load * L / GA / 2, u[-6:])
