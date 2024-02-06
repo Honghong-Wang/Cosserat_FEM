@@ -258,25 +258,27 @@ def act(i):
         ax.text(x0[-5], y0[-5], "load : " + str(round(fapp__[i] / 1000, 2)) + "k", bbox={'facecolor': 'white', 'alpha': 0.6, 'pad': 2})
         if not video_request:
             ax.plot(x0, y0)
-    if i == 0:
-        ay.legend()
-    ay.scatter(abs(fapp__[i]), -u[-4, 0] + L, marker=".", label="horizontal tip displacement")
-    ay.scatter(abs(fapp__[i]), u[-5, 0], marker="+", label="vertical tip displacement")
+
+    ay.scatter(abs(fapp__[i]), -u[-4, 0] + L, marker=".")
+    ay.scatter(abs(fapp__[i]), u[-5, 0], marker="+")
     if i == LOAD_INCREMENTS - 1:
         controlled_animation.disconnect()
 
 
+ay.scatter(0, 0, marker=".", label="horizontal tip displacement")
+ay.scatter(0, 0, marker="+", label="vertical tip displacement")
+ay.legend()
 ay.axhline(y=0)
 ay.set_xlabel(r"LOAD", fontsize=16)
 ay.set_ylabel(r"Tip Displacement", fontsize=16)
-ax.set_xlabel(r"$r_3$", fontsize=30)
-ax.set_ylabel(r"$r_2$", fontsize=30)
+ax.set_xlabel(r"$r_3$", fontsize=25)
+ax.set_ylabel(r"$r_2$", fontsize=25)
 ax.set_ylim(-85, 41)
 y = u[DOF * vi + 1, 0]
 x = u[DOF * vi + 2, 0]
 line1, = ax.plot(x, y)
 ax.set_title("Centerline displacement")
-ay.set_title("Tip Displacement vs load")
+ay.set_title("Tip Displacement vs Load")
 controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False)
 controlled_animation.start()
 print(max_load * L / GA / 2, u[-6:])
