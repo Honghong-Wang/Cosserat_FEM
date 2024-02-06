@@ -28,6 +28,8 @@ icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
 numberOfNodes = len(node_data)
 ngpt = 1
 wgp, gp = sol.init_gauss_points(ngpt)
+
+# Setting up displacement vectors
 u = np.zeros((numberOfNodes * DOF, 1))
 du = np.zeros((numberOfNodes * DOF, 1))
 nodesPerElement = element_type ** DIMENSIONS
@@ -58,9 +60,6 @@ ElasticityBending = np.array([[E0 * i0, 0, 0],
 #                               [0, EI, 0],
 #                               [0, 0, 0.5 * EI]])
 
-"""
-Starting point
-"""
 Elasticity = np.zeros((6, 6))
 Elasticity[0: 3, 0: 3] = ElasticityExtension
 Elasticity[3: 6, 3: 6] = ElasticityBending
@@ -80,8 +79,8 @@ Starting point
 residue_norm = 0
 increments_norm = 0
 u *= 0
+# since rod is lying straight in E3 direction it's centerline will have these coordinates
 u[6 * vi + 2, 0] = node_data
-u[6 * vi + 4, 0] = 0
 # Thetas are zero
 
 r1 = np.zeros(numberOfNodes)
@@ -104,7 +103,7 @@ Set load and load steps
 """
 # max_load = 2 * np.pi * E0 * i0 / L
 max_load = 30 * E0 * i0
-LOAD_INCREMENTS = 101  # Follower load usually needs larger steps compared to dead or pure bending
+LOAD_INCREMENTS = 101  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 
 """
@@ -114,10 +113,10 @@ Main loop
 
 def fea(load_iter_, is_halt=False):
     """
-        :param load_iter_: Load index
-        :param is_halt: signals animator if user requested a pause
-        :return: use input , True if user want to stop animation
-        """
+    :param load_iter_: Load index
+    :param is_halt: signals animator if user requested a pause
+    :return: use input , True if user want to stop animation
+    """
     global u
     global du
     global residue_norm
