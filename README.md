@@ -4,21 +4,14 @@ Newton raphson is used as iterative process, Refer to [lectures](https://www.you
 
 ### Libraries
 **Essentials**
-- numpy
-- matplotlib
+- [numpy](https://numpy.org/)
+- [matplotlib](https://matplotlib.org/)
 
 **Optional**
 
-Remove these lines from `nyu`, `main` or `test` if you don't want optional files
-```
-import scienceplots
-
-plt.style.use(['science'])
-```
-- latex (pip install latex)
+- [latex](https://pypi.org/project/latex/) (pip install latex)
 - [SciencePlots](https://pypi.org/project/SciencePlots/)
-- Install [MiKtex](https://miktex.org/download) locally add `$\pdftotex.exe` location to PATH variable of user/system
-- [tqdm](https://pypi.org/project/tqdm/), if you're not installing this remove its dependencies in `AnimationController.py`
+- Install [MiKtex](https://miktex.org/download) locally add `$\latex.exe` location to PATH variable of user/system (in case of Windows OS)
 ## Examples
 
 #### Follower Load
