@@ -187,13 +187,10 @@ def fea(load_iter_, is_halt=False):
             du = du / increments_norm
         if increments_norm < 1e-6 and residue_norm < 1e-4:
             break
-        """
-        Configuration update (not working as of now) for angles greater than 360 deg, Make this work for multi-axis rotations
-        """
-        # TODO: Change this, this is working fine but numerically it is not the best way, it works perfectly if two rotations are about one axis
+        # TODO: Change this, it works perfectly if two rotations are about one axis (R_(i+1) = exp(dtheta_i) * exp(theta_i))
         u += du
 
-    if not is_log_residue:
+    if is_log_residue:
         print(
             "--------------------------------------------------------------------------------------------------------------------------------------------------",
             fapp__[load_iter_], load_iter_)
