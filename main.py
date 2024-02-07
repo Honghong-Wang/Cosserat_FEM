@@ -8,9 +8,12 @@ import solver1d as sol
 import matplotlib.pyplot as plt
 import slerp as slerpsol
 from AnimationController import ControlledAnimation
-import scienceplots
+try:
+    import scienceplots
+    plt.style.use(['science', 'high-vis'])
+except ImportError as e:
+    pass
 
-plt.style.use(['science', 'high-vis'])
 np.set_printoptions(linewidth=250)
 
 """
@@ -121,7 +124,7 @@ def fea(load_iter_, is_halt=False):
     global du
     global residue_norm
     global increments_norm
-    global progress_bar_request
+    global is_log_residue
     for iter_ in range(MAX_ITER):
         KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
         # Follower load
@@ -190,7 +193,7 @@ def fea(load_iter_, is_halt=False):
         # TODO: Change this, this is working fine but numerically it is not the best way, it works perfectly if two rotations are about one axis
         u += du
 
-    if not progress_bar_request:
+    if not is_log_residue:
         print(
             "--------------------------------------------------------------------------------------------------------------------------------------------------",
             fapp__[load_iter_], load_iter_)
@@ -218,7 +221,7 @@ xmin = 0
 ymin = 0
 
 video_request = False
-progress_bar_request = False  # Making it 1 will disable logging of residue after convergence
+is_log_residue = True  # Prints residue to console after every load iteration if set true
 
 
 def act(i):
@@ -267,6 +270,6 @@ x = u[DOF * vi + 2, 0]
 line1, = ax.plot(x, y)
 ax.set_title("Centerline displacement")
 ay.set_title("Tip Displacement vs Load")
-controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False, progress_bar=progress_bar_request)
+controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False)
 controlled_animation.start()
 print(max_load * L / GA / 2, u[-6:])

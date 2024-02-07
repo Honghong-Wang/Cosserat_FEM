@@ -2,9 +2,12 @@ import numpy as np
 import solver1d as sol
 import matplotlib.pyplot as plt
 from AnimationController import ControlledAnimation
-import scienceplots
+try:
+    import scienceplots
+    plt.style.use(['science', 'high-vis'])
+except ImportError as e:
+    pass
 
-plt.style.use(['science'])
 np.set_printoptions(linewidth=250)
 
 """
@@ -76,7 +79,6 @@ residue_norm = 0
 increments_norm = 0
 u *= 0
 u[6 * vi + 2, 0] = node_data
-u[6 * vi + 4, 0] = 0
 # Thetas are zero
 
 r1 = np.zeros(numberOfNodes)
@@ -151,7 +153,7 @@ def fea(load_iter_, is_halt=False):
                 v = Rot.T @ rds
                 gloc[0: 3] = Rot @ ElasticityExtension @ (v - np.array([0, 0, 1])[:, None])
                 kap = sol.get_incremental_k_path_independent(t, tds)
-                major_kappa[3 * xgp + 3 * ngpt * elm: 3 * ngpt * elm + 3 * (xgp + 1)] += sol.get_incremental_k(dt, dtds, Rot)
+                # major_kappa[3 * xgp + 3 * ngpt * elm: 3 * ngpt * elm + 3 * (xgp + 1)] += sol.get_incremental_k(dt, dtds, Rot)
                 gloc[3: 6] = Rot @ ElasticityBending @ kap
                 pi = sol.get_pi(Rot)
                 n_tensor = sol.skew(gloc[0: 3])
