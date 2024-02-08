@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from include.AnimationController import ControlledAnimation
 try:
     import scienceplots
-    plt.style.use(['science', 'high-vis'])
+    plt.style.use(['science'])
 except ImportError as e:
     pass
 
