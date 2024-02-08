@@ -8,7 +8,7 @@ Newton raphson is used as iterative process, Refer to [lectures](https://www.you
 - [matplotlib](https://matplotlib.org/)
 
 **Optional**
-
+- [FFmpeg](https://ffmpeg.org/) to generate video
 - [latex](https://pypi.org/project/latex/) (pip install latex)
 - [SciencePlots](https://pypi.org/project/SciencePlots/)
 - Install [MiKtex](https://miktex.org/download) locally add `$\latex.exe` location to PATH variable of user/system (in case of Windows OS)
