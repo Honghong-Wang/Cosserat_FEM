@@ -164,3 +164,12 @@ def rotate_vec(q, v):
     v = np.array([0, v[0], v[1], v[2]])
     vc = quatmul(q, quatmul(v, qc))
     return vc[1:]
+
+
+def quaterion_to_rotation_vec(q):
+    q = q / np.linalg.norm(q)
+    normt = np.linalg.norm(q[1:])
+    if np.isclose(normt, 0, atol=1e-10):
+        return q[1:] * 2
+    else:
+        return 2 * np.arcsin(normt) / normt * q[1:]

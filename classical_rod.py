@@ -150,7 +150,7 @@ def fea(load_iter_, is_halt=False):
                 dqh = slerpsol.diff_slerp(q1, q2, Nx_, N_)
 
                 Rot = slerpsol.get_rot_from_q(qh)
-                # This is used to get kappa, and method is taken from Darboux, G. [1972]). Also available in literature of multi-body dynamics
+                # This is used to get kappa, and method is taken from Darboux, G. [1972]. Also available in literature of multi-body dynamics
                 k = 2 * np.array([[-qh[1], qh[0], qh[3], qh[2]],
                                   [-qh[2], qh[3], qh[0], -qh[1]],
                                   [-qh[3], -qh[2], qh[1], qh[0]]]) @ dqh[:, None]
@@ -184,8 +184,22 @@ def fea(load_iter_, is_halt=False):
         increments_norm = np.linalg.norm(du)
         if increments_norm > 1:
             du = du / increments_norm
-        if increments_norm < 1e-6 and residue_norm < 1e-4:
+        if increments_norm < 1e-6 and residue_norm < 1e-3:
             break
+        """
+        Configuration update (not working as of now) for angles greater than 360 deg, Make this work for multi-axis rotations
+        """
+        # for i in range(numberOfNodes):
+        #     q = slerpsol.rotation_vector_to_quaterion(u[6 * i + 3: 6 * i + 6, 0])
+        #     dq = slerpsol.rotation_vector_to_quaterion(du[6 * i + 3: 6 * i + 6, 0])
+        #     q = slerpsol.quatmul(q, dq)
+        #     if q[0] < 0:
+        #         q = -q
+        #     u[6 * i + 3: 6 * i + 6, 0] = slerpsol.quaterion_to_rotation_vec(q)
+        #     u[6 * i + 0: 6 * i + 3] += du[6 * i + 0: 6 * i + 3]
+        """
+        Approx. configuration update
+        """
         # TODO: Change this, it works perfectly if two rotations are about one axis (R_(i+1) = exp(dtheta_i) * exp(theta_i))
         u += du
 
