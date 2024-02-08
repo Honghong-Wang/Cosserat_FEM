@@ -28,7 +28,7 @@ class ControlledAnimation:
     def pause(self, event):
         self.m_pause ^= True
         if self.m_pause:
-            print("halted")
+            print("halted, Click on graph to resume")
             self.ani.event_source.stop()
         else:
             self.ani.event_source.start()
