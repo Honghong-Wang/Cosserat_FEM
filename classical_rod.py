@@ -193,8 +193,6 @@ def fea(load_iter_, is_halt=False):
         #     q = slerpsol.rotation_vector_to_quaterion(u[6 * i + 3: 6 * i + 6, 0])
         #     dq = slerpsol.rotation_vector_to_quaterion(du[6 * i + 3: 6 * i + 6, 0])
         #     q = slerpsol.quatmul(q, dq)
-        #     if q[0] < 0:
-        #         q = -q
         #     u[6 * i + 3: 6 * i + 6, 0] = slerpsol.quaterion_to_rotation_vec(q)
         #     u[6 * i + 0: 6 * i + 3] += du[6 * i + 0: 6 * i + 3]
         """
