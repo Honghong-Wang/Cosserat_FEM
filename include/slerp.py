@@ -30,7 +30,8 @@ def slerp(q1, q2, n):
     sign = 1
     if np.dot(q1, q2) < 0:
         sign = -1
-    omega = np.arccos(np.dot(q1, sign * q2) / np.linalg.norm(q1) / np.linalg.norm(q2))
+
+    omega = np.real(np.arccos(np.dot(q1, sign * q2) / np.linalg.norm(q1) / np.linalg.norm(q2) + 0.j))
     if np.isclose(abs(omega), 0, atol=1e-6):
         return q1 * n[0] + q2 * n[1]
     return (np.sin(n[0] * omega) / np.sin(omega)) * q1 + (np.sin(n[1] * omega) / np.sin(omega)) * q2
@@ -50,7 +51,7 @@ def diff_slerp(q1, q2, nx, n):
     sign = 1
     if np.dot(q1, q2) < 0:
         sign = -1
-    omega = np.arccos(np.dot(q1, sign * q2) / np.linalg.norm(q1) / np.linalg.norm(q2))
+    omega = np.real(np.arccos(np.dot(q1, sign * q2) / np.linalg.norm(q1) / np.linalg.norm(q2) + 0.j))
     if np.isclose(omega, 0, atol=1e-7):
         return nx[0] * q1 + nx[1] * q2
     return np.cos(n[0] * omega) / np.sin(omega) * omega * nx[0] * q1 + np.cos(n[1] * omega) / np.sin(omega) * omega * nx[1] * q2
@@ -168,9 +169,9 @@ def rotate_vec(q, v):
 
 def quaterion_to_rotation_vec(q):
     if q[0] >= 0:
-        normt = 2 * np.arcsin(np.linalg.norm(q[1:]))
+        normt = 2 * np.real(np.arcsin(np.linalg.norm(q[1:]) + 0.j))
     else:
-        normt = 2 * (np.pi - np.arcsin(np.linalg.norm(q[1:])))
+        normt = 2 * (np.pi - np.real(np.arcsin(np.linalg.norm(q[1:]) + 0.j)))
     if np.isclose(normt, 0, atol=1e-10):
         return np.zeros(shape=(3,))
     else:
