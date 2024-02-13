@@ -431,10 +431,9 @@ def k_u(k):
     :param k: kappa vector
     :return: k_u
     """
-    k = skew(k)
     c = np.zeros((12, 12))
-    c[0: 3, 0: 3] = k
-    c[6: 9, 6: 9] = k
+    c[0: 3, 0: 3] = skew(k)
+    c[6: 9, 6: 9] = skew(k)
     return c
 
 
@@ -533,6 +532,27 @@ def get_higher_order_tangent_residue(n, n_, rds, rdsds, rmat, rmatds, cs, cb, ds
                                                               + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_u(rmat) @ k_u(kmat) @ d_u(ds, db) @ pi_uds(rmat) @ e_u(n[j][0], rds)
                                                               + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_u(rmat) @ k_u(kmat) @ d_u(ds, db) @ pi_uds(rmat) @ e_g(n_[j][0], rds, rdsds)
                                                               + matn(nmat, nbmat) @ e_f(n[j][0], n_[j][0]) @ n[i][0])
+
+
+def get_hermite_fn(gp, j, element_type=2):
+    """
+    :param element_type: 2
+    :param gp: eta or gauss points or natural coordinate
+    :param j: jacobian
+    :return: (H,H',H")
+    """
+    if element_type != 2:
+        raise Exception("only linear element for hermite fn")
+    Nmat = np.array([.25 * (gp + 2) * (1 - gp) ** 2, j * .25 * (gp + 1) * (1 - gp) ** 2,
+                     .25 * (-gp + 2) * (1 + gp) ** 2, j * .25 * (gp - 1) * (1 + gp) ** 2])
+
+    Nmat_ = (1 / j) * np.array([0.75 * (gp ** 2 - 1), j * 0.25 * (3 * gp ** 2 - 2 * gp - 1),
+                                0.75 * (1 - gp ** 2), j * 0.25 * (3 * gp ** 2 + 2 * gp - 1)])
+
+    Nmat__ = (1 / j ** 2) * np.array([1.5 * gp, (-.5 + 1.5 * gp) * j,
+                                      -1.5 * gp, (.5 + 1.5 * gp) * j])
+
+    return Nmat[:, None], Nmat_[:, None],  Nmat__[:, None]
 
 
 if __name__ == "__main__":
