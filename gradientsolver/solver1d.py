@@ -252,20 +252,20 @@ def get_incremental_k_path_independent(t, tds):
 
 
 def get_e(dof, n, n_, rds):
-    e = np.zeros((dof, dof))
-    e[0: 3, 0: 3] = n_ * np.eye(3)
-    e[3: 6, 3: 6] = n_ * np.eye(3)
-    e[3: 6, 0: 3] = -n * rds
-    return e
+    e0 = np.zeros((dof, dof))
+    e0[0: 3, 0: 3] = n_ * np.eye(3)
+    e0[3: 6, 3: 6] = n_ * np.eye(3)
+    e0[3: 6, 0: 3] = -n * rds
+    return e0
 
 
-def get_tangent_stiffness_residue(n_tensor, m_tensor, n, nx, dof, pi, c, rds, gloc, ncforce=None):
+def get_tangent_stiffness_residue(n_tensor, m_tensor, n, nx, dof, pi_i, c, rds, gloc, ncforce=None):
     """
     :param gloc: gloc
     :param rds: rds
     :param dof: dof
     :param c: elasticity
-    :param pi: pi
+    :param pi_i: pi_
     :param n_tensor: axial of n
     :param m_tensor: axial of m
     :param n: shape function
@@ -290,8 +290,9 @@ def get_tangent_stiffness_residue(n_tensor, m_tensor, n, nx, dof, pi, c, rds, gl
     for i in range(len(n)):
         r[6 * i: 6 * (i + 1)] += get_e(dof, n[i][0], nx[i][0], rds) @ gloc
         for j in range(len(n)):
-            k[6 * i: (i + 1) * 6, 6 * j: (j + 1) * 6] += get_e(dof, n[i][0], nx[i][0], rds) @ pi @ c @ pi.T @ get_e(dof, n[j][0], nx[j][0], rds).T + n[j][0] *\
-                                                         get_e(dof, n[i][0], nx[i][0], rds) @ nmmat + n[i][0] * nx[j][0] * nmat + fn[i][0] * fn[j][0] * f
+            k[6 * i: (i + 1) * 6, 6 * j: (j + 1) * 6] += (
+                        get_e(dof, n[i][0], nx[i][0], rds) @ pi_i @ c @ pi_i.T @ get_e(dof, n[j][0], nx[j][0], rds).T + n[j][0]
+                        * get_e(dof, n[i][0], nx[i][0], rds) @ nmmat + n[i][0] * nx[j][0] * nmat + fn[i][0] * fn[j][0] * f)
 
     return k.T, r
 
@@ -301,10 +302,237 @@ def get_pi(rot):
     :param rot: rotation
     :return: pi matrix
     """
-    pi = np.zeros((6, 6))
-    pi[0: 3, 0: 3] = rot
-    pi[3: 6, 3: 6] = rot
-    return pi
+    piI = np.zeros((6, 6))
+    piI[0: 3, 0: 3] = rot
+    piI[3: 6, 3: 6] = rot
+    return piI
+
+
+"""
+STRAIN GRADIENT
+------------------------------------------------------------------------------------------------------------------
+"""
+
+"""
+***********************************************************************************************
+MATERIAL STIFFNESS
+"""
+
+
+def c_full(es, eb, hes, heb):
+    """
+    :param es: standard stretch stiffness
+    :param eb: standard bending stiffness
+    :param hes: higher order stretch stiffness
+    :param heb: higher order bending stiffness
+    :return: c_full (refer to notes)
+    """
+    c = np.zeros((12, 12))
+    c[0: 3, 0: 3] = es
+    c[3: 6, 3: 6] = hes
+    c[6: 9, 6: 9] = eb
+    c[9: 12, 9: 12] = heb
+    return c
+
+
+def d_u(hes, heb):
+    """
+    :param hes: higher order stretch stiffness
+    :param heb: higher order bending stiffness
+    :return: d_u (refer to notes)
+    """
+    c = np.zeros((12, 12))
+    c[0: 3, 0: 3] = hes
+    c[6: 9, 6: 9] = heb
+    return c
+
+
+def d_l(hes, heb):
+    """
+    :param hes: higher order stretch stiffness
+    :param heb: higher order bending stiffness
+    :return: c_l (refer to notes)
+    """
+    c = np.zeros((12, 12))
+    c[3: 6, 3: 6] = hes
+    c[9: 12, 9: 12] = heb
+    return c
+
+
+"""
+*******************************************************************
+"""
+
+"""
+***********************************************************************************
+ROTATIONS
+"""
+
+
+def pi(r):
+    """
+    :param r: rotation tensor
+    :return: pi
+    """
+    c = np.zeros((12, 12))
+    c[0: 3, 0: 3] = r
+    c[3: 6, 3: 6] = r
+    c[6: 9, 6: 9] = r
+    c[9: 12, 9: 12] = r
+    return c
+
+
+def pi_l(r):
+    """
+    :param r: rotation tensor
+    :return: pi_l
+    """
+    c = np.zeros((12, 12))
+    c[3: 6, 3: 6] = r
+    c[9: 12, 9: 12] = r
+    return c
+
+
+def pi_u(r):
+    """
+    :param r: rotation tensor
+    :return: pi_u
+    """
+    c = np.zeros((12, 12))
+    c[0: 3, 0: 3] = r
+    c[6: 9, 6: 9] = r
+    return c
+
+
+def pi_uds(rds):
+    """
+    :param rds: rotation tensor derivative
+    :return: pi_uds
+    """
+    c = np.zeros((12, 12))
+    c[0: 3, 0: 3] = rds
+    c[6: 9, 6: 9] = rds
+    return c
+
+
+def pi_lds(rds):
+    """
+    :param rds: rotation tensor derivative
+    :return: pi_lds
+    """
+    c = np.zeros((12, 12))
+    c[3: 6, 3: 6] = rds
+    c[9: 12, 9: 12] = rds
+    return c
+
+
+def k_u(k):
+    """
+    :param k: kappa vector
+    :return: k_u
+    """
+    k = skew(k)
+    c = np.zeros((12, 12))
+    c[0: 3, 0: 3] = k
+    c[6: 9, 6: 9] = k
+    return c
+
+
+"""
+***************************************************************************
+OPERATORS
+"""
+
+
+def e(n, n_, rds, rdsds):
+    c = np.zeros((12, 12))
+    c[0: 3, 3: 6] = n * np.eye(3)
+    c[0: 3, 6: 9] = skew(rds)
+    c[3: 6, 3: 6] = n_ * np.eye(3)
+    c[3: 6, 6: 9] = skew(rdsds)
+    c[3: 6, 9: 12] = skew(rds)
+    c[6: 9, 9: 12] = n * np.eye(3)
+    c[9: 12, 9: 12] = n_ * np.eye(3)
+    return c
+
+
+def e_l(n, rds):
+    c = np.zeros((12, 12))
+    c[3: 6, 3: 6] = n * np.eye(3)
+    c[3: 6, 6: 9] = skew(rds)
+    c[9: 12, 9: 12] = n * np.eye(3)
+    return c
+
+
+def e_u(n, rds):
+    c = np.zeros((12, 12))
+    c[0: 3, 3: 6] = n * np.eye(3)
+    c[0: 3, 6: 9] = skew(rds)
+    c[6: 9, 9: 12] = n * np.eye(3)
+    return c
+
+
+def e_g(n_, rds, rdsds):
+    c = np.zeros((12, 12))
+    c[3: 6, 3: 6] = n_ * np.eye(3)
+    c[3: 6, 6: 9] = skew(rdsds)
+    c[3: 6, 9: 12] = skew(rds)
+    c[9: 12, 9: 12] = n_ * np.eye(3)
+    return c
+
+
+def e_f(n, n_):
+    c = np.zeros((12, 12))
+    c[6: 9, 3: 6] = (n + n_) * np.eye(3)
+    c[9: 12, 3: 6] = n * np.eye(3)
+    return c
+
+
+"""
+*******************************************************************
+"""
+
+"""
+******************************************************************************************
+FORCES/STRESSES
+"""
+
+
+def matn(n, nb):
+    c = np.zeros((12, 12))
+    c[6: 9, 6: 9] = skew(n)
+    c[9: 12, 9: 12] = skew(nb)
+    return c
+
+
+def matnm(n, nb, m, mb):
+    c = np.zeros((12, 12))
+    c[0: 3, 6: 9] = -skew(n)
+    c[3: 6, 6: 9] = -skew(nb)
+    c[3: 6, 9: 12] = -skew(nb)
+    c[6: 9, 6: 9] = -skew(m)
+    c[9: 12, 6: 9] = -skew(mb)
+    c[9: 12, 9: 12] = -skew(mb)
+    return c
+
+
+"""
+*********************************************************************
+"""
+
+
+def get_higher_order_tangent_residue(n, n_, rds, rdsds, rmat, rmatds, cs, cb, ds, db, nmat, nbmat, mmat, mbmat, kmat, dof, gloc):
+    k = np.zeros((dof * len(n), dof * len(n)))
+    r = np.zeros((dof * len(n), 1))
+    for i in range(len(n)):
+        r[dof * i: dof * (i + 1)] += e(n[i][0], n_[i][0], rds, rdsds).T @ gloc
+        for j in range(len(n)):
+            k[12 * i: 12 * (i + 1), 12 * j: 12 * (j + 1)] += (e(n[i][0], n_[i][0], rds, rdsds).T @ matnm(nmat, nbmat, mmat, mbmat) * n[j][0]
+                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi(rmat) @ c_full(cs, cb, ds, db) @ pi(rmat).T @ e(n[j][0], n_[j][0], rds, rdsds)
+                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_l(rmat) @ d_l(ds, db) @ pi_lds(rmatds) @ e_l(n[j][0], rds)
+                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_u(rmat) @ k_u(kmat) @ d_u(ds, db) @ pi_uds(rmat) @ e_u(n[j][0], rds)
+                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_u(rmat) @ k_u(kmat) @ d_u(ds, db) @ pi_uds(rmat) @ e_g(n_[j][0], rds, rdsds)
+                                                              + matn(nmat, nbmat) @ e_f(n[j][0], n_[j][0]) @ n[i][0])
 
 
 if __name__ == "__main__":
