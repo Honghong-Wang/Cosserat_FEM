@@ -20,7 +20,7 @@ np.set_printoptions(linewidth=250)
 Set Finite Element Parameters
 """
 DIMENSIONS = 1
-DOF = 6
+DOF = 12
 
 MAX_ITER = 100  # Max newton raphson iteration
 element_type = 2
@@ -41,6 +41,7 @@ nodesPerElement = element_type ** DIMENSIONS
 SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
+l0 = 0.2
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -52,9 +53,17 @@ GA = 1.6 * 10 ** 8
 ElasticityExtension = np.array([[G0 * A, 0, 0],
                                 [0, G0 * A, 0],
                                 [0, 0, E0 * A]])
-ElasticityBending = np.array([[E0 * i0, 0, 0],
-                              [0, E0 * i0, 0],
-                              [0, 0, G0 * J]])
+ElasticityBending = np.array([[E0 * i0 + l0 ** 2 * E0 * A, 0, 0],
+                              [0, E0 * i0 + l0 ** 2 * E0 * A, 0],
+                              [0, 0, G0 * J + 2 * l0 ** 2 * G0 * A]])
+
+ElasticityExtensionH = l0 ** 2 * np.array([[G0 * A, 0, 0],
+                                [0, G0 * A, 0],
+                                [0, 0, E0 * A]])
+ElasticityBendingH = np.array([[E0 * i0 * l0 ** 2, 0, 0],
+                              [0, i0 + l0 ** 2 * E0, 0],
+                              [0, 0, G0 * J * l0 ** 2]])
+
 
 # ElasticityExtension = np.array([[GA, 0, 0],
 #                                 [0, GA, 0],
@@ -83,7 +92,7 @@ residue_norm = 0
 increments_norm = 0
 u *= 0
 # since rod is lying straight in E3 direction it's centerline will have these coordinates
-u[6 * vi + 2, 0] = node_data
+u[DOF * vi + 2, 0] = node_data
 # Thetas are zero
 
 r1 = np.zeros(numberOfNodes)
@@ -128,10 +137,10 @@ def fea(load_iter_, is_halt=False):
     for iter_ in range(MAX_ITER):
         KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
         # Follower load
-        s = sol.get_rotation_from_theta_tensor(u[-3:, 0]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
-        FG[-6:-3] = s
+        # s = sol.get_rotation_from_theta_tensor(u[-3:, 0]) @ np.array([0, fapp__[load_iter_], 0])[:, None] * 0
+        # FG[-6:-3] = s
         # Pure Bending
-        # FG[-3, 0] = -fapp__[load_iter_]
+        FG[-3, 0] = -fapp__[load_iter_]
         for elm in range(numberOfElements):
             n = icon[elm][1:]
             xloc = node_data[n][:, None]
@@ -174,9 +183,9 @@ def fea(load_iter_, is_halt=False):
             KG[iv[:, None], iv] += kloc
 
         # TODO: Make a generalized function for application of point as well as body loads
-        f = np.zeros((6, 6))
-        f[0: 3, 3: 6] = -sol.skew(s)
-        KG[-6:, -6:] += f
+        # f = np.zeros((6, 6))
+        # f[0: 3, 3: 6] = -sol.skew(s)
+        # KG[-6:, -6:] += f
         for ibc in range(6):
             sol.impose_boundary_condition(KG, FG, ibc, 0)
         du = -sol.get_displacement_vector(KG, FG)

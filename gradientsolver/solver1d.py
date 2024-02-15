@@ -520,18 +520,19 @@ def matnm(n, nb, m, mb):
 """
 
 
-def get_higher_order_tangent_residue(n, n_, rds, rdsds, rmat, rmatds, cs, cb, ds, db, nmat, nbmat, mmat, mbmat, kmat, dof, gloc):
-    k = np.zeros((dof * len(n), dof * len(n)))
-    r = np.zeros((dof * len(n), 1))
-    for i in range(len(n)):
+def get_higher_order_tangent_residue(n, n_, rds, rdsds, rmat, rmatds, cs, cb, ds, db, nmat, nbmat, mmat, mbmat, kmat, dof, gloc, element_type=2):
+    k = np.zeros((dof * element_type, dof * element_type))
+    r = np.zeros((dof * element_type, 1))
+    for i in range(element_type):
         r[dof * i: dof * (i + 1)] += e(n[i][0], n_[i][0], rds, rdsds).T @ gloc
-        for j in range(len(n)):
+        for j in range(element_type):
             k[12 * i: 12 * (i + 1), 12 * j: 12 * (j + 1)] += (e(n[i][0], n_[i][0], rds, rdsds).T @ matnm(nmat, nbmat, mmat, mbmat) * n[j][0]
                                                               + e(n[i][0], n_[i][0], rds, rdsds).T @ pi(rmat) @ c_full(cs, cb, ds, db) @ pi(rmat).T @ e(n[j][0], n_[j][0], rds, rdsds)
                                                               + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_l(rmat) @ d_l(ds, db) @ pi_lds(rmatds) @ e_l(n[j][0], rds)
                                                               + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_u(rmat) @ k_u(kmat) @ d_u(ds, db) @ pi_uds(rmat) @ e_u(n[j][0], rds)
                                                               + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_u(rmat) @ k_u(kmat) @ d_u(ds, db) @ pi_uds(rmat) @ e_g(n_[j][0], rds, rdsds)
                                                               + matn(nmat, nbmat) @ e_f(n[j][0], n_[j][0]) @ n[i][0])
+    return k, r
 
 
 def get_hermite_fn(gp, j, element_type=2):
@@ -545,10 +546,8 @@ def get_hermite_fn(gp, j, element_type=2):
         raise Exception("only linear element for hermite fn")
     Nmat = np.array([.25 * (gp + 2) * (1 - gp) ** 2, j * .25 * (gp + 1) * (1 - gp) ** 2,
                      .25 * (-gp + 2) * (1 + gp) ** 2, j * .25 * (gp - 1) * (1 + gp) ** 2])
-
     Nmat_ = (1 / j) * np.array([0.75 * (gp ** 2 - 1), j * 0.25 * (3 * gp ** 2 - 2 * gp - 1),
                                 0.75 * (1 - gp ** 2), j * 0.25 * (3 * gp ** 2 + 2 * gp - 1)])
-
     Nmat__ = (1 / j ** 2) * np.array([1.5 * gp, (-.5 + 1.5 * gp) * j,
                                       -1.5 * gp, (.5 + 1.5 * gp) * j])
 
