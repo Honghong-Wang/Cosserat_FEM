@@ -1,4 +1,5 @@
 import numpy as np
+from include import quaternion_smith as quat_sol
 
 
 def init_gauss_points(n=3):

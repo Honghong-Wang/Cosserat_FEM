@@ -8,8 +8,10 @@ from gradientsolver import solver1d as sol
 from include import slerp as slerpsol
 import matplotlib.pyplot as plt
 from include.AnimationController import ControlledAnimation
+
 try:
     import scienceplots
+
     plt.style.use(['science'])
 except ImportError as e:
     pass
@@ -58,12 +60,11 @@ ElasticityBending = np.array([[E0 * i0 + l0 ** 2 * E0 * A, 0, 0],
                               [0, 0, G0 * J + 2 * l0 ** 2 * G0 * A]])
 
 ElasticityExtensionH = l0 ** 2 * np.array([[G0 * A, 0, 0],
-                                [0, G0 * A, 0],
-                                [0, 0, E0 * A]])
+                                           [0, G0 * A, 0],
+                                           [0, 0, E0 * A]])
 ElasticityBendingH = np.array([[E0 * i0 * l0 ** 2, 0, 0],
-                              [0, i0 + l0 ** 2 * E0, 0],
-                              [0, 0, G0 * J * l0 ** 2]])
-
+                               [0, i0 + l0 ** 2 * E0, 0],
+                               [0, 0, G0 * J * l0 ** 2]])
 
 # ElasticityExtension = np.array([[GA, 0, 0],
 #                                 [0, GA, 0],
