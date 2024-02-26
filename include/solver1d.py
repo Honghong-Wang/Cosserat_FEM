@@ -251,6 +251,19 @@ def get_incremental_k_path_independent(t, tds):
     return (1 / norm_t ** 2 * (1 - x) * t @ t.T + x * np.eye(3) - y * tensor_t) @ tds
 
 
+def get_incremental_k_path_independent_second(t, tds):
+    """
+    :param t: theta
+    :param tds: theta_prime
+    :return: kappa
+    """
+    norm_t = np.linalg.norm(t)
+    tensor_t = skew(t)
+    if np.isclose(norm_t, 0, atol=1e-6):
+        return tds
+    return (np.eye(3) - (1 - np.cos(norm_t)) / norm_t ** 2 * tensor_t + (norm_t - np.sin(norm_t)) / norm_t ** 3 * tensor_t @ tensor_t) @ tds
+
+
 def get_e(dof, n, n_, rds):
     e = np.zeros((dof, dof))
     e[0: 3, 0: 3] = n_ * np.eye(3)
