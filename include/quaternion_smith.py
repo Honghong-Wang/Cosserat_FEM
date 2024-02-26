@@ -96,3 +96,23 @@ def quat_from_scaled_rotation(x):
     :return: rotation quaternion
     """
     return quat_from_rotation_vector(x / 2.0)
+
+
+def quat_hermite(r0, v0, r1, v1, h_, hx_, hxx_):
+    """
+    :param r0: node 1 theta
+    :param v0: node 1 theta'
+    :param r1: node 2 theta
+    :param v1: node 2 theta'
+    :param h_: hermite shape fn
+    :param hx_: derivative of h
+    :param hxx_: double derivative of h
+    :return: interpolated quaterion and curvature
+    """
+    qr0 = quat_from_scaled_rotation(r0)
+    qr1 = quat_from_scaled_rotation(r1)
+    qr1_sub_qr0 = quat_to_scaled_rotation(quat_abs(quat_mul_inv(qr1, qr0)))
+    rot = quat_mul(quat_from_scaled_rotation(h_[2][0] * qr1_sub_qr0 + h_[1][0] * v0 + h_[3][0] * v1), qr0)
+    vel = hx_[2][0] * qr1_sub_qr0 + hx_[1][0] * v0 + hx_[3][0] * v1
+    acc = hx_[2][0] * qr1_sub_qr0 + hxx_[1][0] * v0 + hx_[3][0] * v1
+    return rot, vel
