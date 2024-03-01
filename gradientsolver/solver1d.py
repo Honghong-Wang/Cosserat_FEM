@@ -45,6 +45,25 @@ def get_displacement_vector(k, f):
     return np.linalg.solve(k, f)
 
 
+def get_hermite_fn(gp, j, element_type=2):
+    """
+    :param element_type: 2
+    :param gp: eta or gauss points or natural coordinate
+    :param j: jacobian
+    :return: (H,H',H")
+    """
+    if element_type != 2:
+        raise Exception("only linear element for hermite fn")
+    Nmat = np.array([.25 * (gp + 2) * (1 - gp) ** 2, j * .25 * (gp + 1) * (1 - gp) ** 2,
+                     .25 * (-gp + 2) * (1 + gp) ** 2, j * .25 * (gp - 1) * (1 + gp) ** 2])
+    Nmat_ = (1 / j) * np.array([0.75 * (gp ** 2 - 1), j * 0.25 * (3 * gp ** 2 - 2 * gp - 1),
+                                0.75 * (1 - gp ** 2), j * 0.25 * (3 * gp ** 2 + 2 * gp - 1)])
+    Nmat__ = (1 / j ** 2) * np.array([1.5 * gp, (-.5 + 1.5 * gp) * j,
+                                      -1.5 * gp, (.5 + 1.5 * gp) * j])
+
+    return Nmat[:, None], Nmat_[:, None], Nmat__[:, None]
+
+
 def get_lagrange_fn(gp, element_type=2):
     """
     Linear Lagrange shape functions
@@ -291,8 +310,8 @@ def get_tangent_stiffness_residue(n_tensor, m_tensor, n, nx, dof, pi_i, c, rds, 
         r[6 * i: 6 * (i + 1)] += get_e(dof, n[i][0], nx[i][0], rds) @ gloc
         for j in range(len(n)):
             k[6 * i: (i + 1) * 6, 6 * j: (j + 1) * 6] += (
-                        get_e(dof, n[i][0], nx[i][0], rds) @ pi_i @ c @ pi_i.T @ get_e(dof, n[j][0], nx[j][0], rds).T + n[j][0]
-                        * get_e(dof, n[i][0], nx[i][0], rds) @ nmmat + n[i][0] * nx[j][0] * nmat + fn[i][0] * fn[j][0] * f)
+                    get_e(dof, n[i][0], nx[i][0], rds) @ pi_i @ c @ pi_i.T @ get_e(dof, n[j][0], nx[j][0], rds).T + n[j][0]
+                    * get_e(dof, n[i][0], nx[i][0], rds) @ nmmat + n[i][0] * nx[j][0] * nmat + fn[i][0] * fn[j][0] * f)
 
     return k.T, r
 
@@ -312,6 +331,28 @@ def get_pi(rot):
 STRAIN GRADIENT
 ------------------------------------------------------------------------------------------------------------------
 """
+
+
+def get_h(n_, nx_):
+    """
+    :param n_: hermite fn
+    :param nx_: hermite derivative
+    :return: consolidated shape function
+    """
+    c = np.zeros((12, 12))
+    i = np.zeros(3)
+    c[0: 3, 0: 3] = i * n_[0]
+    c[0: 3, 3: 6] = i * n_[1]
+    c[3: 6, 0: 3] = i * nx_[0]
+    c[3: 6, 3: 6] = i * nx_[1]
+    c[6: 9, 6: 9] = i * n_[0]
+    c[6: 9, 9: 12] = i * n_[1]
+    c[9: 12, 6: 9] = i * nx_[0]
+    c[9: 12, 9: 12] = i * nx_[1]
+    return c
+
+
+
 
 """
 ***********************************************************************************************
@@ -443,15 +484,31 @@ OPERATORS
 """
 
 
-def e(n, n_, rds, rdsds):
+def e(n_, nx_, nxx_, rds, rdsds):
+    """
+    :param rds: rds
+    :param n_: hermite fn
+    :param nx_: hermite derivative
+    :param nxx_: hermite double derivative
+    :param rdsds: rdsds
+    :return: e
+    """
+    i = np.eye(3)
     c = np.zeros((12, 12))
-    c[0: 3, 3: 6] = n * np.eye(3)
-    c[0: 3, 6: 9] = skew(rds)
-    c[3: 6, 3: 6] = n_ * np.eye(3)
-    c[3: 6, 6: 9] = skew(rdsds)
-    c[3: 6, 9: 12] = skew(rds)
-    c[6: 9, 9: 12] = n * np.eye(3)
-    c[9: 12, 9: 12] = n_ * np.eye(3)
+    rds = skew(rds)
+    rdsds = skew(rdsds)
+    c[0: 3, 0: 3] = nx_[0]
+    c[0: 3, 3: 6] = i * nx_[1]
+    c[0: 3, 6: 9] = rds * n_[0]
+    c[0: 3, 9: 12] = rds * n_[1]
+    c[3: 6, 0: 3] = i * nxx_[0]
+    c[3: 6, 3: 6] = i * nxx_[1]
+    c[3: 6, 6: 9] = rdsds * n_[0] + rds * nx_[0]
+    c[3: 6, 9: 12] = rdsds * n_[1] + rds * nx_[1]
+    c[6: 9, 6: 9] = i * nx_[0]
+    c[6: 9, 9: 12] = i * nx_[1]
+    c[9: 12, 6: 9] = i * nxx_[0]
+    c[9: 12, 9: 12] = i * nxx_[1]
     return c
 
 
@@ -471,19 +528,40 @@ def e_u(n, rds):
     return c
 
 
-def e_g(n_, rds, rdsds):
+def e_g(n_, nx_, nxx_, rds, rdsds):
+    """
+    :param rds: rds
+    :param n_: hermite fn
+    :param nx_: hermite derivative
+    :param nxx_: hermite double derivative
+    :param rdsds: rdsds
+    :return: e_g
+    """
+    i = np.eye(3)
     c = np.zeros((12, 12))
-    c[3: 6, 3: 6] = n_ * np.eye(3)
-    c[3: 6, 6: 9] = skew(rdsds)
-    c[3: 6, 9: 12] = skew(rds)
-    c[9: 12, 9: 12] = n_ * np.eye(3)
+    rds = skew(rds)
+    rdsds = skew(rdsds)
+    c[3: 6, 0: 3] = i * nxx_[0]
+    c[3: 6, 3: 6] = i * nxx_[1]
+    c[3: 6, 6: 9] = rdsds * n_[0] + rds * nx_[0]
+    c[3: 6, 9: 12] = rdsds * n_[1] + rds * nx_[1]
+    c[9: 12, 6: 9] = i * nxx_[0]
+    c[9: 12, 9: 12] = i * nxx_[1]
     return c
 
 
-def e_f(n, n_):
+def e_f(nx_, nxx_):
+    """
+    :param nxx_: hermite double derivative
+    :param nx_: hermite derivative
+    :return: e_f
+    """
     c = np.zeros((12, 12))
-    c[6: 9, 3: 6] = (n + n_) * np.eye(3)
-    c[9: 12, 3: 6] = n * np.eye(3)
+    i = np.eye(3)
+    c[6: 9, 0: 3] = (nx_[0] + nxx_[0]) * i
+    c[6: 9, 3: 6] = (nx_[1] + nxx_[1]) * i
+    c[6: 9, 0: 3] = nx_[0] * i
+    c[9: 12, 3: 6] = nx_[1] * i
     return c
 
 
@@ -527,31 +605,23 @@ def get_higher_order_tangent_residue(n, n_, rds, rdsds, rmat, rmatds, cs, cb, ds
         r[dof * i: dof * (i + 1)] += e(n[i][0], n_[i][0], rds, rdsds).T @ gloc
         for j in range(element_type):
             k[12 * i: 12 * (i + 1), 12 * j: 12 * (j + 1)] += (e(n[i][0], n_[i][0], rds, rdsds).T @ matnm(nmat, nbmat, mmat, mbmat) * n[j][0]
-                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi(rmat) @ c_full(cs, cb, ds, db) @ pi(rmat).T @ e(n[j][0], n_[j][0], rds, rdsds)
-                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_l(rmat) @ d_l(ds, db) @ pi_lds(rmatds) @ e_l(n[j][0], rds)
-                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_u(rmat) @ k_u(kmat) @ d_u(ds, db) @ pi_uds(rmat) @ e_u(n[j][0], rds)
-                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_u(rmat) @ k_u(kmat) @ d_u(ds, db) @ pi_uds(rmat) @ e_g(n_[j][0], rds, rdsds)
+                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi(rmat) @ c_full(cs, cb, ds, db) @ pi(rmat).T @ e(n[j][0],
+                                                                                                                                                        n_[j][
+                                                                                                                                                            0],
+                                                                                                                                                        rds,
+                                                                                                                                                        rdsds)
+                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_l(rmat) @ d_l(ds, db) @ pi_lds(rmatds) @ e_l(n[j][0],
+                                                                                                                                                     rds)
+                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_u(rmat) @ k_u(kmat) @ d_u(ds, db) @ pi_uds(rmat) @ e_u(
+                        n[j][0], rds)
+                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_u(rmat) @ k_u(kmat) @ d_u(ds, db) @ pi_uds(rmat) @ e_g(
+                        n_[j][0], rds, rdsds)
                                                               + matn(nmat, nbmat) @ e_f(n[j][0], n_[j][0]) @ n[i][0])
     return k, r
 
 
-def get_hermite_fn(gp, j, element_type=2):
-    """
-    :param element_type: 2
-    :param gp: eta or gauss points or natural coordinate
-    :param j: jacobian
-    :return: (H,H',H")
-    """
-    if element_type != 2:
-        raise Exception("only linear element for hermite fn")
-    Nmat = np.array([.25 * (gp + 2) * (1 - gp) ** 2, j * .25 * (gp + 1) * (1 - gp) ** 2,
-                     .25 * (-gp + 2) * (1 + gp) ** 2, j * .25 * (gp - 1) * (1 + gp) ** 2])
-    Nmat_ = (1 / j) * np.array([0.75 * (gp ** 2 - 1), j * 0.25 * (3 * gp ** 2 - 2 * gp - 1),
-                                0.75 * (1 - gp ** 2), j * 0.25 * (3 * gp ** 2 + 2 * gp - 1)])
-    Nmat__ = (1 / j ** 2) * np.array([1.5 * gp, (-.5 + 1.5 * gp) * j,
-                                      -1.5 * gp, (.5 + 1.5 * gp) * j])
-
-    return Nmat[:, None], Nmat_[:, None],  Nmat__[:, None]
+def beizer_curve():
+    pass
 
 
 if __name__ == "__main__":
