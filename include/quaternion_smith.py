@@ -28,7 +28,7 @@ def clamp(x, minimum, maximum):
     return np.clip(x, minimum, maximum)
 
 
-def quaternion_inv(q):
+def quat_inv(q):
     q[0] = -q[0]
     return q
 
@@ -55,7 +55,7 @@ def quat_inv_mul(q1, q2):
     :param q2: q2
     :return: inv(q1) o q2
     """
-    return quat_mul(quaternion_inv(q1), q2)
+    return quat_mul(quat_inv(q1), q2)
 
 
 def quat_mul_inv(q1, q2):
@@ -65,7 +65,7 @@ def quat_mul_inv(q1, q2):
     :param q2: q2
     :return: q1 o inv(q2)
     """
-    return quat_mul(q1, quaternion_inv(q2))
+    return quat_mul(q1, quat_inv(q2))
 
 
 def quat_abs(q):
