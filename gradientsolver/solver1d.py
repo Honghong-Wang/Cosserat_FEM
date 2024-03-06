@@ -61,7 +61,7 @@ def get_hermite_fn(gp, j, element_type=2):
     Nmat__ = (1 / j ** 2) * np.array([1.5 * gp, (-.5 + 1.5 * gp) * j,
                                       -1.5 * gp, (.5 + 1.5 * gp) * j])
 
-    return Nmat[:, None], Nmat_[:, None], Nmat__[:, None]
+    return Nmat, Nmat_, Nmat__
 
 
 def get_lagrange_fn(gp, element_type=2):
@@ -352,8 +352,6 @@ def get_h(n_, nx_):
     return c
 
 
-
-
 """
 ***********************************************************************************************
 MATERIAL STIFFNESS
@@ -512,19 +510,19 @@ def e(n_, nx_, nxx_, rds, rdsds):
     return c
 
 
-def e_l(n, rds):
+def e_l(rds):
     c = np.zeros((12, 12))
-    c[3: 6, 3: 6] = n * np.eye(3)
+    c[3: 6, 3: 6] = np.eye(3)
     c[3: 6, 6: 9] = skew(rds)
-    c[9: 12, 9: 12] = n * np.eye(3)
+    c[9: 12, 9: 12] = np.eye(3)
     return c
 
 
-def e_u(n, rds):
+def e_u(rds):
     c = np.zeros((12, 12))
-    c[0: 3, 3: 6] = n * np.eye(3)
+    c[0: 3, 3: 6] = np.eye(3)
     c[0: 3, 6: 9] = skew(rds)
-    c[6: 9, 9: 12] = n * np.eye(3)
+    c[6: 9, 9: 12] = np.eye(3)
     return c
 
 
@@ -584,12 +582,16 @@ def matn(n, nb):
 
 def matnm(n, nb, m, mb):
     c = np.zeros((12, 12))
-    c[0: 3, 6: 9] = -skew(n)
-    c[3: 6, 6: 9] = -skew(nb)
-    c[3: 6, 9: 12] = -skew(nb)
-    c[6: 9, 6: 9] = -skew(m)
-    c[9: 12, 6: 9] = -skew(mb)
-    c[9: 12, 9: 12] = -skew(mb)
+    n = skew(n)
+    nb = skew(nb)
+    m = skew(m)
+    mb = skew(mb)
+    c[0: 3, 6: 9] = -n
+    c[3: 6, 6: 9] = -nb
+    c[3: 6, 9: 12] = -nb
+    c[6: 9, 6: 9] = -m
+    c[9: 12, 6: 9] = -mb
+    c[9: 12, 9: 12] = -mb
     return c
 
 
@@ -598,25 +600,28 @@ def matnm(n, nb, m, mb):
 """
 
 
-def get_higher_order_tangent_residue(n, n_, rds, rdsds, rmat, rmatds, cs, cb, ds, db, nmat, nbmat, mmat, mbmat, kmat, dof, gloc, element_type=2):
-    k = np.zeros((dof * element_type, dof * element_type))
-    r = np.zeros((dof * element_type, 1))
+def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs, cb, ds, db, nmat, nbmat, mmat, mbmat, kvec, dof, gloc, element_type=2):
+    f = dof * element_type
+    k = np.zeros((f, f))
+    r = np.zeros((f, 1))
     for i in range(element_type):
-        r[dof * i: dof * (i + 1)] += e(n[i][0], n_[i][0], rds, rdsds).T @ gloc
+        hi, hi_, hi__ = n_[2 * i: 2 * (i + 1)], nx_[2 * i: 2 * (i + 1)], nxx_[2 * i: 2 * (i + 1)]
+        Ei = e(hi, hi_, hi__, rds, rdsds).T
+        Hmati = get_h(hi, hi_)
+        r[f * i: f * (i + 1)] += Ei @ gloc
         for j in range(element_type):
-            k[12 * i: 12 * (i + 1), 12 * j: 12 * (j + 1)] += (e(n[i][0], n_[i][0], rds, rdsds).T @ matnm(nmat, nbmat, mmat, mbmat) * n[j][0]
-                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi(rmat) @ c_full(cs, cb, ds, db) @ pi(rmat).T @ e(n[j][0],
-                                                                                                                                                        n_[j][
-                                                                                                                                                            0],
-                                                                                                                                                        rds,
-                                                                                                                                                        rdsds)
-                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_l(rmat) @ d_l(ds, db) @ pi_lds(rmatds) @ e_l(n[j][0],
-                                                                                                                                                     rds)
-                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_u(rmat) @ k_u(kmat) @ d_u(ds, db) @ pi_uds(rmat) @ e_u(
-                        n[j][0], rds)
-                                                              + e(n[i][0], n_[i][0], rds, rdsds).T @ pi_u(rmat) @ k_u(kmat) @ d_u(ds, db) @ pi_uds(rmat) @ e_g(
-                        n_[j][0], rds, rdsds)
-                                                              + matn(nmat, nbmat) @ e_f(n[j][0], n_[j][0]) @ n[i][0])
+            hj, hj_, hj__ = n_[2 * j: 2 * (j + 1)], nx_[2 * j: 2 * (j + 1)], nxx_[2 * j: 2 * (j + 1)]
+            Hmatj = get_h(hj, hj_)
+            Ej = e(hj, hj_, hj__, rds, rdsds).T
+            E_lj = e_l(rds) @ Hmatj
+            E_uj = e_u(rds) @ Hmatj
+            E_gj = e_g(hj, hj_, hj__, rds, rdsds)
+            E_fj = e_f(hj_, hj__)
+            k[f * i: f * (i + 1), f * j: f * (j + 1)] += (Ei @ matnm(nmat, nbmat, mmat, mbmat) @ Hmatj + Ei @ pi(rmat) @ c_full(cs, cb, ds, db) @ pi(rmat).T @ Ej.T
+                                                          + Ei @ pi_l(rmat) @ d_l(ds, db) @ pi_lds(rmatds).T @ E_lj
+                                                          + Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(cs, cb) @ pi_uds(rmatds).T @ E_uj
+                                                          + Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(cs, cb) @ pi_u(rmat).T @ E_gj
+                                                          + Hmati @ matn(nmat, nbmat) @ E_fj)
     return k, r
 
 
