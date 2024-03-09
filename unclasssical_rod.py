@@ -73,12 +73,7 @@ ElasticityBendingH = np.array([[E0 * i0 * l0 ** 2, 0, 0],
 #                               [0, EI, 0],
 #                               [0, 0, 0.5 * EI]])
 
-Elasticity = np.zeros((6, 6))
-Elasticity[0: 3, 0: 3] = ElasticityExtension
-Elasticity[3: 6, 3: 6] = ElasticityBending
-# Elasticity = np.eye(6)
-# Elasticity[2, 2] = 10
-# Elasticity[5, 5] = 10
+
 
 """
 Markers
@@ -138,15 +133,18 @@ def fea(load_iter_, is_halt=False):
     for iter_ in range(MAX_ITER):
         KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
         # Follower load
-        # s = sol.get_rotation_from_theta_tensor(u[-3:, 0]) @ np.array([0, fapp__[load_iter_], 0])[:, None] * 0
-        # FG[-6:-3] = s
+        s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
+        FG[-12: -9] = s
         # Pure Bending
-        FG[-3, 0] = -fapp__[load_iter_]
+        # FG[-3, 0] = -fapp__[load_iter_]
         for elm in range(numberOfElements):
             n = icon[elm][1:]
             xloc = node_data[n][:, None]
-            rloc = np.array([u[6 * n, 0], u[6 * n + 1, 0], u[6 * n + 2, 0]])
-            tloc = np.array([u[6 * n + 3, 0], u[6 * n + 4, 0], u[6 * n + 5, 0]])
+            rloc = np.array([u[DOF * n[0] + np.array([0, 1, 2]), 0]])
+            print(rloc)
+            rloc = np.array([u[DOF * n, 0], u[DOF * n + 1, 0], u[DOF * n + 2, 0], u[DOF * n + 3, 0], u[DOF * n + 4, 0], u[DOF * n + 5, 0]])
+            tloc = np.array([u[DOF * n + 6, 0], u[DOF * n + 7, 0], u[DOF * n + 8, 0], u[DOF * n + 9, 0], u[DOF * n + 10, 0], u[DOF * n + 11, 0]])
+            print(rloc)
             kloc, floc = sol.init_stiffness_force(nodesPerElement, DOF)
             q1 = slerpsol.rotation_vector_to_quaterion(tloc[:, 0].reshape(3, ))
             q2 = slerpsol.rotation_vector_to_quaterion(tloc[:, 1].reshape(3, ))
@@ -154,7 +152,8 @@ def fea(load_iter_, is_halt=False):
             gloc = np.zeros((6, 1))
             for xgp in range(len(wgp)):
                 N_, Bmat = sol.get_lagrange_fn(gp[xgp], element_type)
-                Jac = (xloc.T @ Bmat)[0][0]
+                le = xloc[-1] - xloc[0]
+                Jac = le / 2
                 Nx_ = 1 / Jac * Bmat
                 rds = rloc @ Nx_
                 qh = slerpsol.slerp(q1, q2, N_)
