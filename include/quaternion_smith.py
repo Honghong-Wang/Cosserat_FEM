@@ -44,8 +44,6 @@ def quat_mul(q1, q2):
     """
     a1, b1, c1, d1 = q1
     a2, b2, c2, d2 = q2
-    print(a1, a2, b1, b2)
-    print(a1 * a2 - b1 * b2)
     return np.array([a1 * a2 - b1 * b2 - c1 * c2 - d1 * d2,
                      a1 * b2 + b1 * a2 + c1 * d2 - d1 * c2,
                      a1 * c2 - b1 * d2 + c1 * a2 + d1 * b2,
@@ -180,7 +178,7 @@ def quat_hermite(r0, v0, r1, v1, h_, hx_, hxx_):
 if __name__ == "__main__":
     import os
     print(os.path.basename(__file__))
-    q1 = np.array([ 0.70162935, -0.71254211  ,0.          ,0.        ])
+    q1 = np.array([0.70162935, -0.71254211, 0., 0.])
     q1 = q1 / np.linalg.norm(q1)
     q2 = quat_inv(q1)
     print(q2)

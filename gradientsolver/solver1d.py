@@ -600,7 +600,8 @@ def matnm(n, nb, m, mb):
 """
 
 
-def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs, cb, ds, db, nmat, nbmat, mmat, mbmat, kvec, dof, gloc, element_type=2):
+def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs, cb, ds, db, kvec, dof, gloc, element_type=2):
+    nmat, nbmat, mmat, mbmat = gloc[0: 3], gloc[3: 6], gloc[6: 9], gloc[9: 12]
     f = dof * element_type
     k = np.zeros((f, f))
     r = np.zeros((f, 1))
@@ -608,7 +609,7 @@ def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs
         hi, hi_, hi__ = n_[2 * i: 2 * (i + 1)], nx_[2 * i: 2 * (i + 1)], nxx_[2 * i: 2 * (i + 1)]
         Ei = e(hi, hi_, hi__, rds, rdsds).T
         Hmati = get_h(hi, hi_)
-        r[f * i: f * (i + 1)] += Ei @ gloc
+        r[dof * i: dof * (i + 1)] += Ei @ gloc
         for j in range(element_type):
             hj, hj_, hj__ = n_[2 * j: 2 * (j + 1)], nx_[2 * j: 2 * (j + 1)], nxx_[2 * j: 2 * (j + 1)]
             Hmatj = get_h(hj, hj_)
@@ -617,11 +618,11 @@ def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs
             E_uj = e_u(rds) @ Hmatj
             E_gj = e_g(hj, hj_, hj__, rds, rdsds)
             E_fj = e_f(hj_, hj__)
-            k[f * i: f * (i + 1), f * j: f * (j + 1)] += (Ei @ matnm(nmat, nbmat, mmat, mbmat) @ Hmatj + Ei @ pi(rmat) @ c_full(cs, cb, ds, db) @ pi(rmat).T @ Ej.T
-                                                          + Ei @ pi_l(rmat) @ d_l(ds, db) @ pi_lds(rmatds).T @ E_lj
-                                                          + Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(cs, cb) @ pi_uds(rmatds).T @ E_uj
-                                                          + Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(cs, cb) @ pi_u(rmat).T @ E_gj
-                                                          + Hmati @ matn(nmat, nbmat) @ E_fj)
+            k[dof * i: dof * (i + 1), dof * j: dof * (j + 1)] += (Ei @ matnm(nmat, nbmat, mmat, mbmat) @ Hmatj + Ei @ pi(rmat) @ c_full(cs, cb, ds, db) @ pi(rmat).T @ Ej.T
+                                                                  + Ei @ pi_l(rmat) @ d_l(ds, db) @ pi_lds(rmatds).T @ E_lj
+                                                                  + Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(ds, db) @ pi_uds(rmatds).T @ E_uj
+                                                                  + Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(ds, db) @ pi_u(rmat).T @ E_gj
+                                                                  + Hmati @ matn(nmat, nbmat) @ E_fj)
     return k, r
 
 

@@ -5,10 +5,10 @@ go to etc. for other methods to interpolate rotations
 """
 import numpy as np
 from gradientsolver import solver1d as sol
-from include import slerp as slerpsol
+from include import slerp as slerpsol, quaternion_smith as quat_sol
 import matplotlib.pyplot as plt
 from include.AnimationController import ControlledAnimation
-
+import pandas as pd
 try:
     import scienceplots
 
@@ -27,7 +27,7 @@ DOF = 12
 MAX_ITER = 100  # Max newton raphson iteration
 element_type = 2
 L = 1
-numberOfElements = 20
+numberOfElements = 1
 
 icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
 numberOfNodes = len(node_data)
@@ -74,7 +74,6 @@ ElasticityBendingH = np.array([[E0 * i0 * l0 ** 2, 0, 0],
 #                               [0, 0, 0.5 * EI]])
 
 
-
 """
 Markers
 """
@@ -89,6 +88,8 @@ increments_norm = 0
 u *= 0
 # since rod is lying straight in E3 direction it's centerline will have these coordinates
 u[DOF * vi + 2, 0] = node_data
+u[DOF * vi + 5, 0] = 1
+
 # Thetas are zero
 
 r1 = np.zeros(numberOfNodes)
@@ -109,8 +110,8 @@ ax.plot(r3, r2, label="un-deformed", marker="o")
 """
 Set load and load steps
 """
-# max_load = 2 * np.pi * E0 * i0 / L
-max_load = 30 * E0 * i0
+max_load = 2 * np.pi * E0 * i0 / L
+# max_load = 30 * E0 * i0
 LOAD_INCREMENTS = 101  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 
@@ -133,47 +134,44 @@ def fea(load_iter_, is_halt=False):
     for iter_ in range(MAX_ITER):
         KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
         # Follower load
-        s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
-        FG[-12: -9] = s
+        # s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
+        # FG[-12: -9] = s
         # Pure Bending
-        # FG[-3, 0] = -fapp__[load_iter_]
+        FG[-10, 0] = -fapp__[load_iter_]
         for elm in range(numberOfElements):
             n = icon[elm][1:]
             xloc = node_data[n][:, None]
-            rloc = np.array([u[DOF * n[0] + np.array([0, 1, 2]), 0]])
-            print(rloc)
-            rloc = np.array([u[DOF * n, 0], u[DOF * n + 1, 0], u[DOF * n + 2, 0], u[DOF * n + 3, 0], u[DOF * n + 4, 0], u[DOF * n + 5, 0]])
-            tloc = np.array([u[DOF * n + 6, 0], u[DOF * n + 7, 0], u[DOF * n + 8, 0], u[DOF * n + 9, 0], u[DOF * n + 10, 0], u[DOF * n + 11, 0]])
-            print(rloc)
+            rloc = np.zeros((3, 4))
+            tloc = np.zeros((3, 4))
+            rloc[:, [0, 2]] = np.array([u[DOF * n, 0], u[DOF * n + 1, 0], u[DOF * n + 2, 0]])
+            rloc[:, [1, 3]] = np.array([u[DOF * n + 3, 0], u[DOF * n + 4, 0], u[DOF * n + 5, 0]])
+            tloc[:, [0, 2]] = np.array([u[DOF * n + 6, 0], u[DOF * n + 7, 0], u[DOF * n + 8, 0]])
+            tloc[:, [1, 3]] = np.array([u[DOF * n + 9, 0], u[DOF * n + 10, 0], u[DOF * n + 11, 0]])
             kloc, floc = sol.init_stiffness_force(nodesPerElement, DOF)
-            q1 = slerpsol.rotation_vector_to_quaterion(tloc[:, 0].reshape(3, ))
-            q2 = slerpsol.rotation_vector_to_quaterion(tloc[:, 1].reshape(3, ))
 
-            gloc = np.zeros((6, 1))
+            gloc = np.zeros((DOF, 1))
             for xgp in range(len(wgp)):
-                N_, Bmat = sol.get_lagrange_fn(gp[xgp], element_type)
-                le = xloc[-1] - xloc[0]
+                # N_, Bmat = sol.get_lagrange_fn(gp[xgp], element_type)
+                le = xloc[-1][0] - xloc[0][0]
                 Jac = le / 2
-                Nx_ = 1 / Jac * Bmat
+                N_, Nx_, Nxx_ = sol.get_hermite_fn(gp[xgp], Jac, element_type)
+                N_, Nx_, Nxx_ = N_[:, None], Nx_[:, None], Nxx_[:, None]
+                qh, k, kp = quat_sol.quat_hermite(tloc[:, 0], tloc[:, 1], tloc[:, 2], tloc[:, 3], N_, Nx_, Nxx_)
+                # Nx_ = 1 / Jac * Bmat
                 rds = rloc @ Nx_
-                qh = slerpsol.slerp(q1, q2, N_)
-                dqh = slerpsol.diff_slerp(q1, q2, Nx_, N_)
-
+                rdsds = rloc @ Nxx_
+                k = k[:, None]
+                kp = kp[:, None]
                 Rot = slerpsol.get_rot_from_q(qh)
-                # This is used to get kappa, and method is taken from Darboux, G. [1972]. Also available in literature of multi-body dynamics
-                k = 2 * np.array([[-qh[1], qh[0], qh[3], qh[2]],
-                                  [-qh[2], qh[3], qh[0], -qh[1]],
-                                  [-qh[3], -qh[2], qh[1], qh[0]]]) @ dqh[:, None]
+
                 v = Rot.T @ rds
-
+                vp = -sol.skew(k) @ Rot @ rds + Rot.T @ rdsds
                 gloc[0: 3] = Rot @ ElasticityExtension @ (v - np.array([0, 0, 1])[:, None])
-                gloc[3: 6] = Rot @ ElasticityBending @ k
-                pi = sol.get_pi(Rot)
-
-                n_tensor = sol.skew(gloc[0: 3])
-                m_tensor = sol.skew(gloc[3: 6])
-                tangent, res = sol.get_tangent_stiffness_residue(n_tensor, m_tensor, N_, Nx_, DOF, pi, Elasticity,
-                                                                 sol.skew(rds), gloc, None)
+                gloc[3: 6] = Rot @ ElasticityExtensionH @ vp
+                gloc[6: 9] = Rot @ ElasticityBending @ k
+                gloc[9: 12] = Rot @ ElasticityBendingH @ kp
+                tangent, res = sol.get_higher_order_tangent_residue(N_, Nx_, Nxx_, rds, rdsds, Rot, Rot @ sol.skew(k), ElasticityExtension,
+                                                                    ElasticityBending, ElasticityExtensionH, ElasticityBendingH, k, DOF, gloc, element_type)
                 floc += res * wgp[xgp] * Jac
                 kloc += tangent * wgp[xgp] * Jac
 
@@ -186,8 +184,14 @@ def fea(load_iter_, is_halt=False):
         # f = np.zeros((6, 6))
         # f[0: 3, 3: 6] = -sol.skew(s)
         # KG[-6:, -6:] += f
-        for ibc in range(6):
-            sol.impose_boundary_condition(KG, FG, ibc, 0)
+        print(np.linalg.matrix_rank(KG), len(u))
+        for ibc in range(12):
+            if ibc == 5:
+                sol.impose_boundary_condition(KG, FG, ibc, 1)
+            else:
+                sol.impose_boundary_condition(KG, FG, ibc, 0)
+        # pd.DataFrame(KG).to_csv("out.csv", index=False)
+        print(np.linalg.matrix_rank(KG), len(u))
         du = -sol.get_displacement_vector(KG, FG)
         residue_norm = np.linalg.norm(FG)
 
@@ -220,7 +224,8 @@ def fea(load_iter_, is_halt=False):
 
 
 u = np.zeros((numberOfNodes * DOF, 1))
-u[6 * vi + 2, 0] = node_data
+u[DOF * vi + 2, 0] = node_data
+u[DOF * vi + 5, 0] = 1
 
 marker_ = np.linspace(0, max_load, LOAD_INCREMENTS)
 # marker_ = np.insert(marker_, 0, [2000, 6000, 12000], axis=0)
