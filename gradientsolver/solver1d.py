@@ -606,12 +606,12 @@ def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs
     k = np.zeros((f, f))
     r = np.zeros((f, 1))
     for i in range(element_type):
-        hi, hi_, hi__ = n_[2 * i: 2 * (i + 1)], nx_[2 * i: 2 * (i + 1)], nxx_[2 * i: 2 * (i + 1)]
+        hi, hi_, hi__ = n_[2 * i: 2 * (i + 1), 0], nx_[2 * i: 2 * (i + 1), 0], nxx_[2 * i: 2 * (i + 1), 0]
         Ei = e(hi, hi_, hi__, rds, rdsds).T
         Hmati = get_h(hi, hi_)
         r[dof * i: dof * (i + 1)] += Ei @ gloc
         for j in range(element_type):
-            hj, hj_, hj__ = n_[2 * j: 2 * (j + 1)], nx_[2 * j: 2 * (j + 1)], nxx_[2 * j: 2 * (j + 1)]
+            hj, hj_, hj__ = n_[2 * j: 2 * (j + 1), 0], nx_[2 * j: 2 * (j + 1), 0], nxx_[2 * j: 2 * (j + 1), 0]
             Hmatj = get_h(hj, hj_)
             Ej = e(hj, hj_, hj__, rds, rdsds).T
             E_lj = e_l(rds) @ Hmatj
