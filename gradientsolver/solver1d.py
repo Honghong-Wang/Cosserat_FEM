@@ -495,7 +495,7 @@ def e(n_, nx_, nxx_, rds, rdsds):
     c = np.zeros((12, 12))
     rds = skew(rds)
     rdsds = skew(rdsds)
-    c[0: 3, 0: 3] = nx_[0]
+    c[0: 3, 0: 3] = i * nx_[0]
     c[0: 3, 3: 6] = i * nx_[1]
     c[0: 3, 6: 9] = rds * n_[0]
     c[0: 3, 9: 12] = rds * n_[1]

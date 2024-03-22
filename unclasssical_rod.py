@@ -8,7 +8,7 @@ from gradientsolver import solver1d as sol
 from include import slerp as slerpsol, quaternion_smith as quat_sol
 import matplotlib.pyplot as plt
 from include.AnimationController import ControlledAnimation
-import pandas as pd
+
 try:
     import scienceplots
 
@@ -27,7 +27,7 @@ DOF = 12
 MAX_ITER = 100  # Max newton raphson iteration
 element_type = 2
 L = 1
-numberOfElements = 1
+numberOfElements = 30
 
 icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
 numberOfNodes = len(node_data)
@@ -43,7 +43,7 @@ nodesPerElement = element_type ** DIMENSIONS
 SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
-l0 = 0.2
+l0 = 0.02
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -85,10 +85,7 @@ Starting point
 """
 residue_norm = 0
 increments_norm = 0
-u *= 0
 # since rod is lying straight in E3 direction it's centerline will have these coordinates
-u[DOF * vi + 2, 0] = node_data
-u[DOF * vi + 5, 0] = 1
 
 # Thetas are zero
 
@@ -112,7 +109,7 @@ Set load and load steps
 """
 max_load = 2 * np.pi * E0 * i0 / L
 # max_load = 30 * E0 * i0
-LOAD_INCREMENTS = 101  # Follower load usually needs more steps compared to dead or pure bending
+LOAD_INCREMENTS = 11  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 
 """
@@ -137,7 +134,7 @@ def fea(load_iter_, is_halt=False):
         # s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
         # FG[-12: -9] = s
         # Pure Bending
-        FG[-10, 0] = -fapp__[load_iter_]
+        FG[-10, 0] = fapp__[load_iter_]
         for elm in range(numberOfElements):
             n = icon[elm][1:]
             xloc = node_data[n][:, None]
@@ -184,14 +181,8 @@ def fea(load_iter_, is_halt=False):
         # f = np.zeros((6, 6))
         # f[0: 3, 3: 6] = -sol.skew(s)
         # KG[-6:, -6:] += f
-        print(np.linalg.matrix_rank(KG), len(u))
         for ibc in range(12):
-            if ibc == 5:
-                sol.impose_boundary_condition(KG, FG, ibc, 1)
-            else:
-                sol.impose_boundary_condition(KG, FG, ibc, 0)
-        # pd.DataFrame(KG).to_csv("out.csv", index=False)
-        print(np.linalg.matrix_rank(KG), len(u))
+            sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
         du = -sol.get_displacement_vector(KG, FG)
         residue_norm = np.linalg.norm(FG)
 
@@ -273,8 +264,8 @@ def act(i):
         if not video_request:
             ax.plot(x0, y0)
 
-    ay.scatter(abs(fapp__[i]), -u[-4, 0] + L, marker=".")
-    ay.scatter(abs(fapp__[i]), u[-5, 0], marker="+")
+    ay.scatter(abs(fapp__[i]), -L + u[-10, 0], marker=".")
+    ay.scatter(abs(fapp__[i]), u[-11, 0], marker="+")
     if i == LOAD_INCREMENTS - 1:
         controlled_animation.disconnect()
 
@@ -295,4 +286,5 @@ ax.set_title("Centerline displacement")
 ay.set_title("Tip Displacement vs Load")
 controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False)
 controlled_animation.start()
-print(max_load * L / GA / 2, u[-6:])
+print(max_load * L / (ElasticityExtension[2, 2]), u[-10, 0] - L)
+print(u[-12:, 0])
