@@ -93,6 +93,7 @@ def fea(load_iter_, is_halt=False):
         dsf = tg - KG
         for ibc in range(12):
             sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
+        sol.impose_boundary_condition(KG, FG, -7, 0)
         du = -sol.get_displacement_vector(KG, FG)
         residue_norm = np.linalg.norm(FG)
 
@@ -149,7 +150,7 @@ nodesPerElement = element_type ** DIMENSIONS
 SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
-l0 = 0.1
+l0 = 0.05
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -215,7 +216,7 @@ Set load and load steps
 """
 max_load = 2 * np.pi * E0 * i0 / L
 # max_load = 30 * E0 * i0
-LOAD_INCREMENTS = 11  # Follower load usually needs more steps compared to dead or pure bending
+LOAD_INCREMENTS = 2  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 u = np.zeros((numberOfNodes * DOF, 1))
 u[DOF * vi + 2, 0] = node_data
@@ -289,7 +290,23 @@ ax.set_title("Centerline displacement")
 ay.set_title("Tip Displacement vs Load")
 controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False)
 controlled_animation.start()
-print(max_load * L / (ElasticityExtension[2, 2]), u[-10, 0] - L)
-print(u[-12:, 0])
 l0 = l0 / L
-print(max_load / (ElasticityExtension[2, 2]) * (1 + l0 * 1 / (np.cosh(1 / 2 / l0) * np.sinh((1 - 2 * 1) / (2 * l0)) - l0 * np.tanh(1 / 2 / l0))))
+fig2, (a0, a1) = plt.subplots(1, 2, figsize=(12, 6))
+print(node_data)
+node_data = node_data / L
+a1.plot(node_data, u[DOF * vi + 5, 0] - 1, label="FEM")
+a1.plot(node_data, max_load / (ElasticityExtension[2, 2]) * (1. - (1. / (np.cosh(1. / 2. / l0)) * (np.cosh((1. - 2 * node_data) / 2. / l0)))), label="ANALYTICAL")
+a0.plot(node_data, u[DOF * vi + 2, 0] - node_data, label="FEM")
+a0.plot(node_data, max_load / (ElasticityExtension[2, 2]) * (node_data - l0 * np.tanh(1 / 2 / l0) + l0 * (1. / (np.cosh(1. / 2. / l0)) * (np.sinh((1. - 2 * node_data) / 2. / l0)))), label="ANALYTICAL")
+a1.legend()
+a0.legend()
+a0.set_title("DISPLACEMENT")
+a1.set_title("STRAIN")
+
+    # df1 = pd.DataFrame([node_data])
+    # df1.loc[len(df1)] = u[DOF * vi + 5, 0] - 1
+    # df2 = pd.DataFrame([node_data])
+    # df2.loc[len(df2)] = u[DOF * vi + 2, 0] - node_data
+    # df1.to_csv('GFG1.csv', index=False, header=False)
+    # df2.to_csv('GFG2.csv', index=False, header=False)
+plt.show()
