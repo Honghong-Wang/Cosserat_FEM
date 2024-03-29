@@ -18,6 +18,112 @@ except ImportError as e:
 
 np.set_printoptions(linewidth=250)
 
+
+
+"""
+Main loop
+"""
+
+
+def fea(load_iter_, is_halt=False):
+    """
+    :param load_iter_: Load index
+    :param is_halt: signals animator if user requested a pause
+    :return: use input , True if user want to stop animation
+    """
+    global u
+    global du
+    global residue_norm
+    global increments_norm
+    global is_log_residue
+    for iter_ in range(MAX_ITER):
+        KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
+        tg = np.zeros_like(KG)
+        # Follower load
+        # s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
+        # FG[-12: -9] = s
+        # Pure Bending
+        FG[-10, 0] = fapp__[load_iter_]
+        for elm in range(numberOfElements):
+            n = icon[elm][1:]
+            xloc = node_data[n][:, None]
+            rloc = np.zeros((3, 4))
+            tloc = np.zeros((3, 4))
+            rloc[:, [0, 2]] = np.array([u[DOF * n, 0], u[DOF * n + 1, 0], u[DOF * n + 2, 0]])
+            rloc[:, [1, 3]] = np.array([u[DOF * n + 3, 0], u[DOF * n + 4, 0], u[DOF * n + 5, 0]])
+            tloc[:, [0, 2]] = np.array([u[DOF * n + 6, 0], u[DOF * n + 7, 0], u[DOF * n + 8, 0]])
+            tloc[:, [1, 3]] = np.array([u[DOF * n + 9, 0], u[DOF * n + 10, 0], u[DOF * n + 11, 0]])
+            kloc, floc = sol.init_stiffness_force(nodesPerElement, DOF)
+            TLOC = np.zeros_like(kloc)
+            gloc = np.zeros((DOF, 1))
+            for xgp in range(len(wgp)):
+                # N_, Bmat = sol.get_lagrange_fn(gp[xgp], element_type)
+                le = xloc[-1][0] - xloc[0][0]
+                Jac = le / 2
+                N_, Nx_, Nxx_ = sol.get_hermite_fn(gp[xgp], Jac, element_type)
+                N_, Nx_, Nxx_ = N_[:, None], Nx_[:, None], Nxx_[:, None]
+                qh, k, kp = quat_sol.quat_hermite(tloc[:, 0], tloc[:, 1], tloc[:, 2], tloc[:, 3], N_, Nx_, Nxx_)
+                # Nx_ = 1 / Jac * Bmat
+                rds = rloc @ Nx_
+                rdsds = rloc @ Nxx_
+                k = k[:, None]
+                kp = kp[:, None]
+                Rot = slerpsol.get_rot_from_q(qh)
+
+                v = Rot.T @ rds
+                vp = -sol.skew(k) @ Rot @ rds + Rot.T @ rdsds
+                gloc[0: 3] = Rot @ ElasticityExtension @ (v - np.array([0, 0, 1])[:, None])
+                gloc[3: 6] = Rot @ ElasticityExtensionH @ vp
+                gloc[6: 9] = Rot @ ElasticityBending @ k
+                gloc[9: 12] = Rot @ ElasticityBendingH @ kp
+                T1, tangent, res = sol.get_higher_order_tangent_residue(N_, Nx_, Nxx_, rds, rdsds, Rot, Rot @ sol.skew(k), ElasticityExtension,
+                                                                        ElasticityBending, ElasticityExtensionH, ElasticityBendingH, k, DOF, gloc, element_type)
+                floc += res * wgp[xgp] * Jac
+                kloc += tangent * wgp[xgp] * Jac
+                TLOC += T1 * wgp[xgp] * Jac
+            iv = np.array(sol.get_assembly_vector(DOF, n))
+
+            FG[iv[:, None], 0] += floc
+            KG[iv[:, None], iv] += kloc
+            tg[iv[:, None], iv] += TLOC
+        # TODO: Make a generalized function for application of point as well as body loads
+        # f = np.zeros((6, 6))
+        # f[0: 3, 3: 6] = -sol.skew(s)
+        # KG[-6:, -6:] += f
+        dsf = tg - KG
+        for ibc in range(12):
+            sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
+        du = -sol.get_displacement_vector(KG, FG)
+        residue_norm = np.linalg.norm(FG)
+
+        increments_norm = np.linalg.norm(du)
+        if increments_norm > 1:
+            du = du / increments_norm
+        if increments_norm < 1e-6 and residue_norm < 1e-3:
+            break
+        """
+        Configuration update (not working as of now) for angles greater than 360 deg, Make this work for multi-axis rotations
+        """
+        # for i in range(numberOfNodes):
+        #     q = slerpsol.rotation_vector_to_quaterion(u[6 * i + 3: 6 * i + 6, 0])
+        #     dq = slerpsol.rotation_vector_to_quaterion(du[6 * i + 3: 6 * i + 6, 0])
+        #     q = slerpsol.quatmul(q, dq)
+        #     u[6 * i + 3: 6 * i + 6, 0] = slerpsol.quaterion_to_rotation_vec(q)
+        #     u[6 * i + 0: 6 * i + 3] += du[6 * i + 0: 6 * i + 3]
+        """
+        Approx. configuration update
+        """
+        # TODO: Change this, it works perfectly if two rotations are about one axis (R_(i+1) = exp(dtheta_i) * exp(theta_i))
+        u += du
+
+    if is_log_residue:
+        print(
+            "--------------------------------------------------------------------------------------------------------------------------------------------------",
+            fapp__[load_iter_], load_iter_)
+        print(residue_norm, increments_norm)
+    return is_halt
+
+
 """
 Set Finite Element Parameters
 """
@@ -31,7 +137,7 @@ numberOfElements = 30
 
 icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
 numberOfNodes = len(node_data)
-ngpt = 1
+ngpt = 3
 wgp, gp = sol.init_gauss_points(ngpt)
 
 # Setting up displacement vectors
@@ -43,7 +149,7 @@ nodesPerElement = element_type ** DIMENSIONS
 SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
-l0 = 0.02
+l0 = 0.1
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -63,7 +169,7 @@ ElasticityExtensionH = l0 ** 2 * np.array([[G0 * A, 0, 0],
                                            [0, G0 * A, 0],
                                            [0, 0, E0 * A]])
 ElasticityBendingH = np.array([[E0 * i0 * l0 ** 2, 0, 0],
-                               [0, i0 + l0 ** 2 * E0, 0],
+                               [0, E0 * i0 * l0 ** 2, 0],
                                [0, 0, G0 * J * l0 ** 2]])
 
 # ElasticityExtension = np.array([[GA, 0, 0],
@@ -111,109 +217,6 @@ max_load = 2 * np.pi * E0 * i0 / L
 # max_load = 30 * E0 * i0
 LOAD_INCREMENTS = 11  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
-
-"""
-Main loop
-"""
-
-
-def fea(load_iter_, is_halt=False):
-    """
-    :param load_iter_: Load index
-    :param is_halt: signals animator if user requested a pause
-    :return: use input , True if user want to stop animation
-    """
-    global u
-    global du
-    global residue_norm
-    global increments_norm
-    global is_log_residue
-    for iter_ in range(MAX_ITER):
-        KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
-        # Follower load
-        # s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
-        # FG[-12: -9] = s
-        # Pure Bending
-        FG[-10, 0] = fapp__[load_iter_]
-        for elm in range(numberOfElements):
-            n = icon[elm][1:]
-            xloc = node_data[n][:, None]
-            rloc = np.zeros((3, 4))
-            tloc = np.zeros((3, 4))
-            rloc[:, [0, 2]] = np.array([u[DOF * n, 0], u[DOF * n + 1, 0], u[DOF * n + 2, 0]])
-            rloc[:, [1, 3]] = np.array([u[DOF * n + 3, 0], u[DOF * n + 4, 0], u[DOF * n + 5, 0]])
-            tloc[:, [0, 2]] = np.array([u[DOF * n + 6, 0], u[DOF * n + 7, 0], u[DOF * n + 8, 0]])
-            tloc[:, [1, 3]] = np.array([u[DOF * n + 9, 0], u[DOF * n + 10, 0], u[DOF * n + 11, 0]])
-            kloc, floc = sol.init_stiffness_force(nodesPerElement, DOF)
-
-            gloc = np.zeros((DOF, 1))
-            for xgp in range(len(wgp)):
-                # N_, Bmat = sol.get_lagrange_fn(gp[xgp], element_type)
-                le = xloc[-1][0] - xloc[0][0]
-                Jac = le / 2
-                N_, Nx_, Nxx_ = sol.get_hermite_fn(gp[xgp], Jac, element_type)
-                N_, Nx_, Nxx_ = N_[:, None], Nx_[:, None], Nxx_[:, None]
-                qh, k, kp = quat_sol.quat_hermite(tloc[:, 0], tloc[:, 1], tloc[:, 2], tloc[:, 3], N_, Nx_, Nxx_)
-                # Nx_ = 1 / Jac * Bmat
-                rds = rloc @ Nx_
-                rdsds = rloc @ Nxx_
-                k = k[:, None]
-                kp = kp[:, None]
-                Rot = slerpsol.get_rot_from_q(qh)
-
-                v = Rot.T @ rds
-                vp = -sol.skew(k) @ Rot @ rds + Rot.T @ rdsds
-                gloc[0: 3] = Rot @ ElasticityExtension @ (v - np.array([0, 0, 1])[:, None])
-                gloc[3: 6] = Rot @ ElasticityExtensionH @ vp
-                gloc[6: 9] = Rot @ ElasticityBending @ k
-                gloc[9: 12] = Rot @ ElasticityBendingH @ kp
-                tangent, res = sol.get_higher_order_tangent_residue(N_, Nx_, Nxx_, rds, rdsds, Rot, Rot @ sol.skew(k), ElasticityExtension,
-                                                                    ElasticityBending, ElasticityExtensionH, ElasticityBendingH, k, DOF, gloc, element_type)
-                floc += res * wgp[xgp] * Jac
-                kloc += tangent * wgp[xgp] * Jac
-
-            iv = np.array(sol.get_assembly_vector(DOF, n))
-
-            FG[iv[:, None], 0] += floc
-            KG[iv[:, None], iv] += kloc
-
-        # TODO: Make a generalized function for application of point as well as body loads
-        # f = np.zeros((6, 6))
-        # f[0: 3, 3: 6] = -sol.skew(s)
-        # KG[-6:, -6:] += f
-        for ibc in range(12):
-            sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
-        du = -sol.get_displacement_vector(KG, FG)
-        residue_norm = np.linalg.norm(FG)
-
-        increments_norm = np.linalg.norm(du)
-        if increments_norm > 1:
-            du = du / increments_norm
-        if increments_norm < 1e-6 and residue_norm < 1e-3:
-            break
-        """
-        Configuration update (not working as of now) for angles greater than 360 deg, Make this work for multi-axis rotations
-        """
-        # for i in range(numberOfNodes):
-        #     q = slerpsol.rotation_vector_to_quaterion(u[6 * i + 3: 6 * i + 6, 0])
-        #     dq = slerpsol.rotation_vector_to_quaterion(du[6 * i + 3: 6 * i + 6, 0])
-        #     q = slerpsol.quatmul(q, dq)
-        #     u[6 * i + 3: 6 * i + 6, 0] = slerpsol.quaterion_to_rotation_vec(q)
-        #     u[6 * i + 0: 6 * i + 3] += du[6 * i + 0: 6 * i + 3]
-        """
-        Approx. configuration update
-        """
-        # TODO: Change this, it works perfectly if two rotations are about one axis (R_(i+1) = exp(dtheta_i) * exp(theta_i))
-        u += du
-
-    if is_log_residue:
-        print(
-            "--------------------------------------------------------------------------------------------------------------------------------------------------",
-            fapp__[load_iter_], load_iter_)
-        print(residue_norm, increments_norm)
-    return is_halt
-
-
 u = np.zeros((numberOfNodes * DOF, 1))
 u[DOF * vi + 2, 0] = node_data
 u[DOF * vi + 5, 0] = 1
@@ -288,3 +291,5 @@ controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_r
 controlled_animation.start()
 print(max_load * L / (ElasticityExtension[2, 2]), u[-10, 0] - L)
 print(u[-12:, 0])
+l0 = l0 / L
+print(max_load / (ElasticityExtension[2, 2]) * (1 + l0 * 1 / (np.cosh(1 / 2 / l0) * np.sinh((1 - 2 * 1) / (2 * l0)) - l0 * np.tanh(1 / 2 / l0))))

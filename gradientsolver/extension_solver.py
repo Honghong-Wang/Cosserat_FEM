@@ -58,8 +58,7 @@ def get_hermite_fn(gp, j, element_type=2):
                      .25 * (-gp + 2) * (1 + gp) ** 2, j * .25 * (gp - 1) * (1 + gp) ** 2])
     Nmat_ = (1 / j) * np.array([0.75 * (gp ** 2 - 1), j * 0.25 * (3 * gp ** 2 - 2 * gp - 1),
                                 0.75 * (1 - gp ** 2), j * 0.25 * (3 * gp ** 2 + 2 * gp - 1)])
-    Nmat__ = (1 / j ** 2) * np.array([1.5 * gp, (-.5 + 1.5 * gp) * j,
-                                      -1.5 * gp, (.5 + 1.5 * gp) * j])
+    Nmat__ = (1 / j ** 2) * np.array([1.5 * gp, (-.5 + 1.5 * gp) * j, -1.5 * gp, (.5 + 1.5 * gp) * j])
 
     return Nmat, Nmat_, Nmat__
 
@@ -331,6 +330,41 @@ def get_pi(rot):
 STRAIN GRADIENT
 ------------------------------------------------------------------------------------------------------------------
 """
+
+
+def get_h_extension(nx_, nxx_):
+    """
+    :param nx_: hermite fn
+    :param nxx_: hermite derivative
+    :return: consolidated shape function
+    """
+    c = np.zeros((6, 6))
+    i = np.eye(3)
+    c[0: 3, 0: 3] = nx_[0] * i
+    c[0: 3, 3: 6] = nx_[1] * i
+    c[3: 6, 0: 3] = nxx_[0] * i
+    c[3: 6, 3: 6] = nxx_[1] * i
+    return c
+
+
+def get_extension_stiffness(cs, ds):
+    c = np.zeros((6, 6))
+    c[0: 3, 0: 3] = cs
+    c[3: 6, 3: 6] = ds
+    return c
+
+
+def get_tangent_stiffness_residue_ext(gloc, n_, nx_, nxx_, cs, ds, dof, element_size=2):
+
+    k = np.zeros((dof * element_size, dof * element_size))
+    r = np.zeros((dof * element_size, 1))
+    for i in range(element_size):
+        hi, hi_, hi__ = n_[2 * i: 2 * (i + 1), 0], nx_[2 * i: 2 * (i + 1), 0], nxx_[2 * i: 2 * (i + 1), 0]
+        r[6 * i: 6 * (i + 1)] += get_h_extension(hi_, hi__).T @ gloc
+        for j in range(element_size):
+            hj, hj_, hj__ = n_[2 * j: 2 * (j + 1), 0], nx_[2 * j: 2 * (j + 1), 0], nxx_[2 * j: 2 * (j + 1), 0]
+            k[6 * i: (i + 1) * 6, 6 * j: (j + 1) * 6] += get_h_extension(hi_, hi__).T @ get_extension_stiffness(cs, ds) @ get_h_extension(hj_, hj__)
+    return k, r
 
 
 def get_h(n_, nx_):
