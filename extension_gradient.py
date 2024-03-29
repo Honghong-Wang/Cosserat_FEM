@@ -8,7 +8,7 @@ from gradientsolver import extension_solver as sol
 from include import slerp as slerpsol, quaternion_smith as quat_sol
 import matplotlib.pyplot as plt
 from include.AnimationController import ControlledAnimation
-
+import pandas as pd
 try:
     import scienceplots
 
@@ -17,7 +17,6 @@ except ImportError as e:
     pass
 
 np.set_printoptions(linewidth=250)
-
 
 """
 Main loop
@@ -48,7 +47,6 @@ def fea(load_iter_, is_halt=False):
             rloc = np.zeros((3, 4))
             rloc[:, [0, 2]] = np.array([u[DOF * n, 0], u[DOF * n + 1, 0], u[DOF * n + 2, 0]])
             rloc[:, [1, 3]] = np.array([u[DOF * n + 3, 0], u[DOF * n + 4, 0], u[DOF * n + 5, 0]])
-            print(rloc)
             kloc, floc = sol.init_stiffness_force(nodesPerElement, DOF)
             gloc = np.zeros((DOF, 1))
             for xgp in range(len(wgp)):
@@ -77,7 +75,8 @@ def fea(load_iter_, is_halt=False):
         # f[0: 3, 3: 6] = -sol.skew(s)
         # KG[-6:, -6:] += f
         for ibc in range(6):
-            sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
+            sol.impose_boundary_condition(KG, FG, ibc, 0)
+        sol.impose_boundary_condition(KG, FG, -1, 0)
         du = -sol.get_displacement_vector(KG, FG)
         residue_norm = np.linalg.norm(FG)
 
@@ -119,7 +118,7 @@ if __name__ == "__main__":
     MAX_ITER = 100  # Max newton raphson iteration
     element_type = 2
     L = 1
-    numberOfElements = 100
+    numberOfElements = 50
 
     icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
     numberOfNodes = len(node_data)
@@ -135,7 +134,7 @@ if __name__ == "__main__":
     SET MATERIAL PROPERTIES
     -----------------------------------------------------------------------------------------------------------------------
     """
-    l0 = 0.1
+    l0 = 0.5
     E0 = 10 ** 8
     G0 = E0 / 2.0
     d = 1 / 1000 * 25.0
@@ -200,7 +199,7 @@ if __name__ == "__main__":
     """
     max_load = 2 * np.pi * E0 * i0 / L
     # max_load = 30 * E0 * i0
-    LOAD_INCREMENTS = 11  # Follower load usually needs more steps compared to dead or pure bending
+    LOAD_INCREMENTS = 2  # Follower load usually needs more steps compared to dead or pure bending
     fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 
     u = np.zeros((numberOfNodes * DOF, 1))
@@ -279,11 +278,22 @@ if __name__ == "__main__":
     print(max_load * L / (ElasticityExtension[2, 2]))
     print(u[-6:, 0])
     l0 = l0 / L
-    print(max_load / (ElasticityExtension[2, 2]) * (1 + l0 * 1 / (np.cosh(1 / 2 / l0) * np.sinh((1 - 2 * 1) / (2 * l0)) - l0 * np.tanh(1 / 2 / l0))))
     fig2, (a0, a1) = plt.subplots(1, 2, figsize=(12, 6))
-    a0.plot(node_data, u[DOF * vi + 5, 0] - 1)
-    a1.plot(node_data, u[DOF * vi + 2, 0] - node_data)
+    print(node_data)
+    node_data = node_data / L
+    a1.plot(node_data, u[DOF * vi + 5, 0] - 1, label="FEM")
+    a1.plot(node_data, max_load / (ElasticityExtension[2, 2]) * (1. - (1. / (np.cosh(1. / 2. / l0)) * (np.cosh((1. - 2 * node_data) / 2. / l0)))), label="ANALYTICAL")
+    a0.plot(node_data, u[DOF * vi + 2, 0] - node_data, label="FEM")
+    a0.plot(node_data, max_load / (ElasticityExtension[2, 2]) * (node_data - l0 * np.tanh(1 / 2 / l0) + l0 * (1. / (np.cosh(1. / 2. / l0)) * (np.sinh((1. - 2 * node_data) / 2. / l0)))), label="ANALYTICAL")
+    a1.legend()
+    a0.legend()
+    a0.set_title("DISPLACEMENT")
+    a1.set_title("STRAIN")
 
-    print(u[DOF * vi + 5, 0] - 1)
+    # df1 = pd.DataFrame([node_data])
+    # df1.loc[len(df1)] = u[DOF * vi + 5, 0] - 1
+    # df2 = pd.DataFrame([node_data])
+    # df2.loc[len(df2)] = u[DOF * vi + 2, 0] - node_data
+    # df1.to_csv('GFG1.csv', index=False, header=False)
+    # df2.to_csv('GFG2.csv', index=False, header=False)
     plt.show()
-
