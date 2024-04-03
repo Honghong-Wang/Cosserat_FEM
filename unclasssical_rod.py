@@ -18,8 +18,6 @@ except ImportError as e:
 
 np.set_printoptions(linewidth=250)
 
-
-
 """
 Main loop
 """
@@ -43,7 +41,7 @@ def fea(load_iter_, is_halt=False):
         # s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
         # FG[-12: -9] = s
         # Pure Bending
-        FG[-10, 0] = fapp__[load_iter_]
+        FG[-9, 0] = -fapp__[load_iter_]
         for elm in range(numberOfElements):
             n = icon[elm][1:]
             xloc = node_data[n][:, None]
@@ -54,7 +52,6 @@ def fea(load_iter_, is_halt=False):
             tloc[:, [0, 2]] = np.array([u[DOF * n + 6, 0], u[DOF * n + 7, 0], u[DOF * n + 8, 0]])
             tloc[:, [1, 3]] = np.array([u[DOF * n + 9, 0], u[DOF * n + 10, 0], u[DOF * n + 11, 0]])
             kloc, floc = sol.init_stiffness_force(nodesPerElement, DOF)
-            TLOC = np.zeros_like(kloc)
             gloc = np.zeros((DOF, 1))
             for xgp in range(len(wgp)):
                 # N_, Bmat = sol.get_lagrange_fn(gp[xgp], element_type)
@@ -76,24 +73,22 @@ def fea(load_iter_, is_halt=False):
                 gloc[3: 6] = Rot @ ElasticityExtensionH @ vp
                 gloc[6: 9] = Rot @ ElasticityBending @ k
                 gloc[9: 12] = Rot @ ElasticityBendingH @ kp
-                T1, tangent, res = sol.get_higher_order_tangent_residue(N_, Nx_, Nxx_, rds, rdsds, Rot, Rot @ sol.skew(k), ElasticityExtension,
-                                                                        ElasticityBending, ElasticityExtensionH, ElasticityBendingH, k, DOF, gloc, element_type)
+                tangent, res = sol.get_higher_order_tangent_residue(N_, Nx_, Nxx_, rds, rdsds, Rot, Rot @ sol.skew(k), ElasticityExtension,
+                                                                    ElasticityBending, ElasticityExtensionH, ElasticityBendingH, k, DOF, gloc, element_type)
                 floc += res * wgp[xgp] * Jac
                 kloc += tangent * wgp[xgp] * Jac
-                TLOC += T1 * wgp[xgp] * Jac
             iv = np.array(sol.get_assembly_vector(DOF, n))
 
             FG[iv[:, None], 0] += floc
             KG[iv[:, None], iv] += kloc
-            tg[iv[:, None], iv] += TLOC
         # TODO: Make a generalized function for application of point as well as body loads
         # f = np.zeros((6, 6))
         # f[0: 3, 3: 6] = -sol.skew(s)
         # KG[-6:, -6:] += f
-        dsf = tg - KG
+        # dsf = tg - KG
         for ibc in range(12):
             sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
-        sol.impose_boundary_condition(KG, FG, -7, 0)
+        sol.impose_boundary_condition(KG, FG, -3, 0)
         du = -sol.get_displacement_vector(KG, FG)
         residue_norm = np.linalg.norm(FG)
 
@@ -122,6 +117,8 @@ def fea(load_iter_, is_halt=False):
             "--------------------------------------------------------------------------------------------------------------------------------------------------",
             fapp__[load_iter_], load_iter_)
         print(residue_norm, increments_norm)
+        vv = np.array([i for i in range(numberOfNodes) if i % 2 == 0])
+        print(u[DOF * vv + 1, 0])
     return is_halt
 
 
@@ -131,14 +128,14 @@ Set Finite Element Parameters
 DIMENSIONS = 1
 DOF = 12
 
-MAX_ITER = 100  # Max newton raphson iteration
+MAX_ITER = 20  # Max newton raphson iteration
 element_type = 2
 L = 1
-numberOfElements = 30
+numberOfElements = 20
 
 icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
 numberOfNodes = len(node_data)
-ngpt = 3
+ngpt = 2
 wgp, gp = sol.init_gauss_points(ngpt)
 
 # Setting up displacement vectors
@@ -150,7 +147,7 @@ nodesPerElement = element_type ** DIMENSIONS
 SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
-l0 = 0.05
+l0 = 0.001
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -190,6 +187,9 @@ vii = np.array([i for i in range(numberOfNodes) if i & 1 == 0])
 """
 Starting point
 """
+# u = np.zeros((numberOfNodes * DOF, 1))
+u[DOF * vi + 2, 0] = node_data
+u[DOF * vi + 5, 0] = 1
 residue_norm = 0
 increments_norm = 0
 # since rod is lying straight in E3 direction it's centerline will have these coordinates
@@ -216,11 +216,9 @@ Set load and load steps
 """
 max_load = 2 * np.pi * E0 * i0 / L
 # max_load = 30 * E0 * i0
-LOAD_INCREMENTS = 2  # Follower load usually needs more steps compared to dead or pure bending
+LOAD_INCREMENTS = 101  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
-u = np.zeros((numberOfNodes * DOF, 1))
-u[DOF * vi + 2, 0] = node_data
-u[DOF * vi + 5, 0] = 1
+
 
 marker_ = np.linspace(0, max_load, LOAD_INCREMENTS)
 # marker_ = np.insert(marker_, 0, [2000, 6000, 12000], axis=0)
@@ -290,7 +288,7 @@ ax.set_title("Centerline displacement")
 ay.set_title("Tip Displacement vs Load")
 controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False)
 controlled_animation.start()
-l0 = l0 / L
+
 fig2, (a0, a1) = plt.subplots(1, 2, figsize=(12, 6))
 print(node_data)
 node_data = node_data / L
@@ -302,11 +300,12 @@ a1.legend()
 a0.legend()
 a0.set_title("DISPLACEMENT")
 a1.set_title("STRAIN")
-
-    # df1 = pd.DataFrame([node_data])
-    # df1.loc[len(df1)] = u[DOF * vi + 5, 0] - 1
-    # df2 = pd.DataFrame([node_data])
-    # df2.loc[len(df2)] = u[DOF * vi + 2, 0] - node_data
-    # df1.to_csv('GFG1.csv', index=False, header=False)
-    # df2.to_csv('GFG2.csv', index=False, header=False)
+# print(u[DOF * vi + 2, 0] - node_data)
+# print(max_load / (ElasticityExtension[2, 2]) * (node_data - l0 * np.tanh(1 / 2 / l0) + l0 * (1. / (np.cosh(1. / 2. / l0)) * (np.sinh((1. - 2 * node_data) / 2. / l0)))))
+# df1 = pd.DataFrame([node_data])
+# df1.loc[len(df1)] = u[DOF * vi + 5, 0] - 1
+# df2 = pd.DataFrame([node_data])
+# df2.loc[len(df2)] = u[DOF * vi + 2, 0] - node_data
+# df1.to_csv('GFG1.csv', index=False, header=False)
+# df2.to_csv('GFG2.csv', index=False, header=False)
 plt.show()

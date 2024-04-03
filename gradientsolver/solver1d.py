@@ -604,7 +604,6 @@ def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs
     nmat, nbmat, mmat, mbmat = gloc[0: 3], gloc[3: 6], gloc[6: 9], gloc[9: 12]
     f = dof * element_type
     k = np.zeros((f, f))
-    fk = np.zeros((f, f))
     r = np.zeros((f, 1))
     for i in range(element_type):
         hi, hi_, hi__ = n_[2 * i: 2 * (i + 1), 0], nx_[2 * i: 2 * (i + 1), 0], nxx_[2 * i: 2 * (i + 1), 0]
@@ -626,8 +625,7 @@ def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs
             A5 = Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(ds, db) @ pi_u(rmat).T @ E_gj
             A6 = Hmati.T @ matn(nmat, nbmat) @ E_fj
             k[dof * i: dof * (i + 1), dof * j: dof * (j + 1)] += (A1 + A2 + A3 + A4 + A5 + A6)
-            fk[dof * i: dof * (i + 1), dof * j: dof * (j + 1)] += (A2)
-    return fk, k, r
+    return k, r
 
 
 def beizer_curve():
