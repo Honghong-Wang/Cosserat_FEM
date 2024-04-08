@@ -412,15 +412,37 @@ def get_h_extension(nx_, nxx_):
     return c
 
 
-def get_tangent_stiffness_residue_bend(gloc, n_, nx_, nxx_, cb, cs, rmat, rmatds, k, dof, element_size=2):
+def mul2(cb, db, rmat):
+    pir = np.zeros((6, 6))
+    pir[0: 3, 0: 3] = rmat
+    pir[3: 6, 3: 6] = rmat
+    ec = np.zeros((6, 6))
+    ec[0: 3, 0: 3] = cb
+    ec[3: 6, 3: 6] = db
+    return pir @ ec @ pir.T
+
+
+def matn_bend(m, mb):
+    c = np.zeros((6, 6))
+    c[0: 3, 0: 3] = -skew(m)
+    c[0: 3, 3: 6] = -skew(mb)
+    c[3: 6, 0: 3] = -skew(m)
+    return c
+
+
+def get_tangent_stiffness_residue_bend(gloc, n_, nx_, nxx_, cb, db, rmat, rmatds, kp, dof, element_size=2):
     k = np.zeros((dof * element_size, dof * element_size))
     r = np.zeros((dof * element_size, 1))
     for i in range(element_size):
         hi, hi_, hi__ = n_[2 * i: 2 * (i + 1), 0], nx_[2 * i: 2 * (i + 1), 0], nxx_[2 * i: 2 * (i + 1), 0]
-        r[6 * i: 6 * (i + 1)] += get_h_extension(hi_, hi__).T @ gloc
+        r[6 * i: 6 * (i + 1)] += get_e2_bend(hi_, hi__).T @ gloc
         for j in range(element_size):
             hj, hj_, hj__ = n_[2 * j: 2 * (j + 1), 0], nx_[2 * j: 2 * (j + 1), 0], nxx_[2 * j: 2 * (j + 1), 0]
-            k[6 * i: (i + 1) * 6, 6 * j: (j + 1) * 6] += get_h_extension(hi_, hi__).T @ get_extension_stiffness(cs, ds) @ get_h_extension(hj_, hj__)
+            k[6 * i: (i + 1) * 6, 6 * j: (j + 1) * 6] += (get_e2_bend(hi_, hi__).T @ mul1(rmat, kp, db) @ get_e1_bend(hj__) +
+                                                          get_e2_bend(hi_, hi__).T @ mul2(cb, db, rmat) @ get_e2_bend(hj_, hj__) +
+                                                          get_e2_bend(hi_, hi__).T @ mul3(db, rmat, rmatds) @ get_e3_bend(hj_) +
+                                                          get_e2_bend(hi_, hi__).T @ mul5(rmat, kp, rmatds, db) @ get_e5_bend(hj_) +
+                                                          get_e2_bend(hi_, hi__).T @ matn_bend(gloc[0: 3, 0], gloc[3: 6, 0]) @ get_h_bending(hi, hi_))
     return k, r
 
 
@@ -742,6 +764,28 @@ def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs
 
 def beizer_curve():
     pass
+
+
+def get_op(nx_, nxx_):
+    return np.array([[nx_[0], nx_[1]],
+                     [nxx_[0], nxx_[1]]])
+
+
+def get_sc(cb, db):
+    return np.array([[cb, 0], [0, db]])
+
+
+def get_ts(gloc, cb, db, n_, nx_, nxx_, dof, element_type=2):
+    f = dof * element_type
+    k = np.zeros((f, f))
+    r = np.zeros((f, 1))
+    for i in range(element_type):
+        hi, hi_, hi__ = n_[2 * i: 2 * (i + 1), 0], nx_[2 * i: 2 * (i + 1), 0], nxx_[2 * i: 2 * (i + 1), 0]
+        r[dof * i: dof * (i + 1)] += get_op(hi_, hi__) @ gloc
+        for j in range(element_type):
+            hj, hj_, hj__ = n_[2 * j: 2 * (j + 1), 0], nx_[2 * j: 2 * (j + 1), 0], nxx_[2 * j: 2 * (j + 1), 0]
+            k[dof * i: dof * (i + 1), dof * j: dof * (j + 1)] += get_op(hi_, hi__).T @ get_sc(cb, db) @ get_op(hj_, hj__)
+    return k, r
 
 
 if __name__ == "__main__":

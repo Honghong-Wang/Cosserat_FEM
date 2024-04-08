@@ -41,13 +41,13 @@ def fea(load_iter_, is_halt=False):
         # s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
         # FG[-12: -9] = s
         # Pure Bending
-        FG[-6, 0] = fapp__[load_iter_]
+        FG[-2, 0] = fapp__[load_iter_]
         for elm in range(numberOfElements):
             n = icon[elm][1:]
             xloc = node_data[n][:, None]
-            rloc = np.zeros((3, 4))
-            rloc[:, [0, 2]] = np.array([u[DOF * n, 0], u[DOF * n + 1, 0], u[DOF * n + 2, 0]])
-            rloc[:, [1, 3]] = np.array([u[DOF * n + 3, 0], u[DOF * n + 4, 0], u[DOF * n + 5, 0]])
+            rloc = np.zeros((1, 4))
+            rloc[:, [0, 2]] = np.array([u[DOF * n, 0]])
+            rloc[:, [1, 3]] = np.array([u[DOF * n + 1, 0]])
             kloc, floc = sol.init_stiffness_force(nodesPerElement, DOF)
             gloc = np.zeros((DOF, 1))
             for xgp in range(len(wgp)):
@@ -60,12 +60,11 @@ def fea(load_iter_, is_halt=False):
                 t = rloc @ N_
                 tds = rloc @ Nx_
                 tdsds = rloc @ Nxx_
-                k = tds
-                kp = tdsds
-                Rot = sol.get_rotation_from_theta_tensor(t)
-                gloc[0: 3] = Rot @ ElasticityBending @ k
-                gloc[3: 6] = Rot @ ElasticityBendingH @ kp
-                tangent, res = sol.get_tangent_stiffness_residue_bend(gloc, N_, Nx_, Nxx_, ElasticityBending, ElasticityBendingH, Rot, Rot @ sol.skew(k), k, DOF, element_type)
+                k = tds[0][0]
+                kp = tdsds[0][0]
+                gloc[0] = ElasticityBending[0, 0] * k
+                gloc[1] = ElasticityBendingH[0, 0] * kp
+                tangent, res = sol.get_ts(gloc, ElasticityBending[0, 0], ElasticityBendingH[0, 0], N_, Nx_, Nxx_, DOF, 2)
                 floc += res * wgp[xgp] * Jac
                 kloc += tangent * wgp[xgp] * Jac
 
@@ -77,9 +76,9 @@ def fea(load_iter_, is_halt=False):
         # f = np.zeros((6, 6))
         # f[0: 3, 3: 6] = -sol.skew(s)
         # KG[-6:, -6:] += f
-        for ibc in range(6):
+        for ibc in range(2):
             sol.impose_boundary_condition(KG, FG, ibc, 0)
-        sol.impose_boundary_condition(KG, FG, -3, 0)
+        sol.impose_boundary_condition(KG, FG, -1, 0)
         du = -sol.get_displacement_vector(KG, FG)
         residue_norm = np.linalg.norm(FG)
 
@@ -116,7 +115,7 @@ if __name__ == "__main__":
     Set Finite Element Parameters
     """
     DIMENSIONS = 1
-    DOF = 6
+    DOF = 2
 
     MAX_ITER = 100  # Max newton raphson iteration
     element_type = 2
@@ -143,7 +142,7 @@ if __name__ == "__main__":
     SET MATERIAL PROPERTIES
     -----------------------------------------------------------------------------------------------------------------------
     """
-    l0 = 0.1
+    l0 = 0.05
     E0 = 10 ** 8
     G0 = E0 / 2.0
     d = 1 / 1000 * 25.0
@@ -184,18 +183,16 @@ if __name__ == "__main__":
 
     r1 = np.zeros(numberOfNodes)
     r2 = np.zeros(numberOfNodes)
-    r3 = np.zeros(numberOfNodes)
     for i in range(numberOfNodes):
         r1[i] = u[DOF * i][0]
         r2[i] = u[DOF * i + 1][0]
-        r3[i] = u[DOF * i + 2][0]
 
     """
     Initialize Graph
     """
     fig, (ax, ay) = plt.subplots(1, 2, figsize=(16, 5), width_ratios=[1, 2])
     ax.set_xlim(0, L)
-    ax.plot(r3, r2, label="un-deformed", marker="o")
+    # ax.plot(r3, r2, label="un-deformed", marker="o")
 
     """
     Set load and load steps
@@ -236,8 +233,8 @@ if __name__ == "__main__":
         if halt:
             controlled_animation.stop()
             return
-        y0 = u[DOF * vi + 1, 0]
-        x0 = u[DOF * vi + 2, 0]
+        y0 = -np.cos(u[DOF * vi, 0])
+        x0 = np.sin(u[DOF * vi, 0]) + node_data
         if np.isclose(abs(fapp__[i]), marker_).any():
             xmax, ymax = max(xmax, np.max(x0)), max(np.max(y0), ymax)
             xmin, ymin = min(xmin, np.min(x0)), min(np.min(y0), ymin)
@@ -266,8 +263,8 @@ if __name__ == "__main__":
     ax.set_xlabel(r"$r_3$", fontsize=25)
     ax.set_ylabel(r"$r_2$", fontsize=25)
     ax.set_ylim(-85, 41)
-    y = u[DOF * vi + 1, 0]
-    x = u[DOF * vi + 2, 0]
+    y = -np.cos(u[DOF * vi, 0])
+    x = np.sin(u[DOF * vi, 0]) + node_data
     line1, = ax.plot(x, y)
     ax.set_title("Centerline displacement")
     ay.set_title("Tip Displacement vs Load")
@@ -275,18 +272,18 @@ if __name__ == "__main__":
     controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False)
     controlled_animation.start()
     print(max_load * L / (ElasticityBending[0, 0]))
-    print(u[-6:, 0])
+    print(u[-2:, 0])
     l0 = l0 / L
     fig2, (a0, a1) = plt.subplots(1, 2, figsize=(12, 6))
     print(node_data)
     node_data = node_data / L
     M0 = max_load / (E0 * (A * l0 ** 2 + i0) * L)
     ETA = i0 * l0 ** 2 / (i0 + A * l0 ** 2)
-    print(np.cosh(1 / 2 / ETA))
-    a0.plot(node_data, u[DOF * vi + 2, 0] - node_data, label="FEM")
+    print(ETA)
+    a0.plot(node_data, u[DOF * vi, 0] - node_data, label="FEM")
     a0.plot(node_data, max_load / (ElasticityExtension[2, 2]) * (node_data - l0 * np.tanh(1 / 2 / l0) + l0 * (1. / (np.cosh(1. / 2. / l0)) * (np.sinh((1. - 2 * node_data) / 2. / l0)))), label="ANALYTICAL")
-    a1.plot(node_data, u[DOF * vi + 2, 0], label="FEM")
-    a1.plot(node_data, max_load * (node_data - ETA * np.tanh(1/2/ETA) + ETA * np.sinh((1 - 2 * node_data) / 2 / ETA)/(np.cosh(1 / 2 / ETA))), label="ANALYTICAL")
+    a1.plot(node_data, u[DOF * vi + 1, 0], label="FEM")
+    a1.plot(node_data, max_load * (1 - np.cosh((1 - node_data) / ETA) / np.cosh(1 / ETA)), label="ANALYTICAL")
     a1.legend()
     a0.legend()
     a0.set_title("DISPLACEMENT")
