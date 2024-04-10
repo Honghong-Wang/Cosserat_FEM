@@ -107,8 +107,9 @@ def fea(load_iter_, is_halt=False):
         print(
             "--------------------------------------------------------------------------------------------------------------------------------------------------",
             fapp__[load_iter_], load_iter_)
+
         print(residue_norm, increments_norm)
-    return is_halt
+    return is_halt, u[-6, 0]
 
 
 if __name__ == "__main__":
@@ -121,7 +122,7 @@ if __name__ == "__main__":
     MAX_ITER = 100  # Max newton raphson iteration
     element_type = 2
     L = 1
-    numberOfElements = 10
+    numberOfElements = 60
 
     icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
     numberOfNodes = len(node_data)
@@ -143,7 +144,7 @@ if __name__ == "__main__":
     SET MATERIAL PROPERTIES
     -----------------------------------------------------------------------------------------------------------------------
     """
-    l0 = 0.1
+    l0 = 0.005
     E0 = 10 ** 8
     G0 = E0 / 2.0
     d = 1 / 1000 * 25.0
@@ -200,9 +201,9 @@ if __name__ == "__main__":
     """
     Set load and load steps
     """
-    max_load = 2 * np.pi * E0 * i0 / L
+    max_load = 2 * np.pi * E0 * i0 / L * 2
     # max_load = 30 * E0 * i0
-    LOAD_INCREMENTS = 31  # Follower load usually needs more steps compared to dead or pure bending
+    LOAD_INCREMENTS = 101  # Follower load usually needs more steps compared to dead or pure bending
     fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 
     marker_ = np.linspace(0, max_load, LOAD_INCREMENTS)
@@ -232,12 +233,12 @@ if __name__ == "__main__":
         global xmin
         global ymin
         global video_request
-        halt = fea(i)
+        halt, ans = fea(i)
         if halt:
             controlled_animation.stop()
             return
-        y0 = u[DOF * vi + 1, 0]
-        x0 = u[DOF * vi + 2, 0]
+        y0 = node_data * np.sin(u[DOF * vi, 0])
+        x0 = node_data * np.cos(u[DOF * vi, 0])
         if np.isclose(abs(fapp__[i]), marker_).any():
             xmax, ymax = max(xmax, np.max(x0)), max(np.max(y0), ymax)
             xmin, ymin = min(xmin, np.min(x0)), min(np.min(y0), ymin)
@@ -251,8 +252,8 @@ if __name__ == "__main__":
             if not video_request:
                 ax.plot(x0, y0)
 
-        ay.scatter(abs(fapp__[i]), -L + u[-4, 0], marker=".")
-        ay.scatter(abs(fapp__[i]), u[-3, 0], marker="+")
+        ay.scatter(abs(fapp__[i]), ans, marker=".")
+        # ay.scatter(abs(fapp__[i]), u[-3, 0], marker="+")
         if i == LOAD_INCREMENTS - 1:
             controlled_animation.disconnect()
 
@@ -266,8 +267,8 @@ if __name__ == "__main__":
     ax.set_xlabel(r"$r_3$", fontsize=25)
     ax.set_ylabel(r"$r_2$", fontsize=25)
     ax.set_ylim(-85, 41)
-    y = u[DOF * vi + 1, 0]
-    x = u[DOF * vi + 2, 0]
+    y = np.cos(u[DOF * vi, 0])
+    x = np.sin(u[DOF * vi, 0])
     line1, = ax.plot(x, y)
     ax.set_title("Centerline displacement")
     ay.set_title("Tip Displacement vs Load")
@@ -278,15 +279,14 @@ if __name__ == "__main__":
     print(u[-6:, 0])
     l0 = l0 / L
     fig2, (a0, a1) = plt.subplots(1, 2, figsize=(12, 6))
-    print(node_data)
     node_data = node_data / L
+
     M0 = max_load / (E0 * (A * l0 ** 2 + i0) * L)
-    ETA = i0 * l0 ** 2 / (i0 + A * l0 ** 2)
-    print(np.cosh(1 / 2 / ETA))
-    a0.plot(node_data, u[DOF * vi + 2, 0] - node_data, label="FEM")
-    a0.plot(node_data, max_load / (ElasticityExtension[2, 2]) * (node_data - l0 * np.tanh(1 / 2 / l0) + l0 * (1. / (np.cosh(1. / 2. / l0)) * (np.sinh((1. - 2 * node_data) / 2. / l0)))), label="ANALYTICAL")
-    a1.plot(node_data, u[DOF * vi + 2, 0], label="FEM")
-    a1.plot(node_data, max_load * (node_data - ETA * np.tanh(1/2/ETA) + ETA * np.sinh((1 - 2 * node_data) / 2 / ETA)/(np.cosh(1 / 2 / ETA))), label="ANALYTICAL")
+    ETA = np.sqrt(i0 * l0 ** 2 / (i0 + A * l0 ** 2))
+    a0.plot(node_data, u[DOF * vi, 0], label="FEM")
+    a0.plot(node_data, M0 * (node_data - ETA * np.tanh(1 / 2 / ETA) + ETA * np.sinh((1 - 2 * node_data) / 2 / ETA) / np.cosh(1 / 2 / ETA)), label="ANALYTICAL")
+    a1.plot(node_data, u[DOF * vi + 3, 0], label="FEM")
+    a1.plot(node_data, M0 * (1 - np.cosh((1 - 2 * node_data) / 2 / ETA) / np.cosh(1 / 2 / ETA)), label="ANALYTICAL")
     a1.legend()
     a0.legend()
     a0.set_title("DISPLACEMENT")
