@@ -201,9 +201,9 @@ if __name__ == "__main__":
     """
     Set load and load steps
     """
-    max_load = 2 * np.pi * E0 * i0 / L * 2
+    max_load = 2 * np.pi * E0 * i0 / L
     # max_load = 30 * E0 * i0
-    LOAD_INCREMENTS = 101  # Follower load usually needs more steps compared to dead or pure bending
+    LOAD_INCREMENTS = 11  # Follower load usually needs more steps compared to dead or pure bending
     fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 
     marker_ = np.linspace(0, max_load, LOAD_INCREMENTS)

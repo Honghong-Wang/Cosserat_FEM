@@ -36,12 +36,11 @@ def fea(load_iter_, is_halt=False):
     global is_log_residue
     for iter_ in range(MAX_ITER):
         KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
-        tg = np.zeros_like(KG)
         # Follower load
         # s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
         # FG[-12: -9] = s
         # Pure Bending
-        FG[-9, 0] = -fapp__[load_iter_]
+        FG[-11, 0] = fapp__[load_iter_]
         for elm in range(numberOfElements):
             n = icon[elm][1:]
             xloc = node_data[n][:, None]
@@ -59,21 +58,22 @@ def fea(load_iter_, is_halt=False):
                 Jac = le / 2
                 N_, Nx_, Nxx_ = sol.get_hermite_fn(gp[xgp], Jac, element_type)
                 N_, Nx_, Nxx_ = N_[:, None], Nx_[:, None], Nxx_[:, None]
-                qh, k, kp = quat_sol.quat_hermite(tloc[:, 0], tloc[:, 1], tloc[:, 2], tloc[:, 3], N_, Nx_, Nxx_)
-                # Nx_ = 1 / Jac * Bmat
                 rds = rloc @ Nx_
                 rdsds = rloc @ Nxx_
-                k = k[:, None]
-                kp = kp[:, None]
-                Rot = slerpsol.get_rot_from_q(qh)
-
+                tds = tloc @ Nx_
+                tdsds = tloc @ Nxx_
+                k = tds
+                kp = tdsds
+                Rot = sol.get_rotation_from_theta_tensor(tloc @ N_)
                 v = Rot.T @ rds
-                vp = -sol.skew(k) @ Rot @ rds + Rot.T @ rdsds
+                Rotds = Rot @ sol.skew(k)
+                vp = Rotds.T @ rds + Rot.T @ rdsds
+                # print(v[:, 0])
                 gloc[0: 3] = Rot @ ElasticityExtension @ (v - np.array([0, 0, 1])[:, None])
                 gloc[3: 6] = Rot @ ElasticityExtensionH @ vp
                 gloc[6: 9] = Rot @ ElasticityBending @ k
                 gloc[9: 12] = Rot @ ElasticityBendingH @ kp
-                tangent, res = sol.get_higher_order_tangent_residue(N_, Nx_, Nxx_, rds, rdsds, Rot, Rot @ sol.skew(k), ElasticityExtension,
+                tangent, res = sol.get_higher_order_tangent_residue(N_, Nx_, Nxx_, rds, rdsds, Rot, Rotds, ElasticityExtension,
                                                                     ElasticityBending, ElasticityExtensionH, ElasticityBendingH, k, DOF, gloc, element_type)
                 floc += res * wgp[xgp] * Jac
                 kloc += tangent * wgp[xgp] * Jac
@@ -88,7 +88,7 @@ def fea(load_iter_, is_halt=False):
         # dsf = tg - KG
         for ibc in range(12):
             sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
-        sol.impose_boundary_condition(KG, FG, -3, 0)
+       # sol.impose_boundary_condition(KG, FG, -3, 0)
         du = -sol.get_displacement_vector(KG, FG)
         residue_norm = np.linalg.norm(FG)
 
@@ -118,7 +118,7 @@ def fea(load_iter_, is_halt=False):
             fapp__[load_iter_], load_iter_)
         print(residue_norm, increments_norm)
         vv = np.array([i for i in range(numberOfNodes) if i % 2 == 0])
-        print(u[DOF * vv + 1, 0])
+        print(u[DOF * vv + 6, 0])
     return is_halt
 
 
@@ -131,11 +131,11 @@ DOF = 12
 MAX_ITER = 20  # Max newton raphson iteration
 element_type = 2
 L = 1
-numberOfElements = 20
+numberOfElements = 40
 
 icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
 numberOfNodes = len(node_data)
-ngpt = 2
+ngpt = 3
 wgp, gp = sol.init_gauss_points(ngpt)
 
 # Setting up displacement vectors
@@ -216,7 +216,7 @@ Set load and load steps
 """
 max_load = 2 * np.pi * E0 * i0 / L
 # max_load = 30 * E0 * i0
-LOAD_INCREMENTS = 101  # Follower load usually needs more steps compared to dead or pure bending
+LOAD_INCREMENTS = 31  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 
 
@@ -288,20 +288,21 @@ ax.set_title("Centerline displacement")
 ay.set_title("Tip Displacement vs Load")
 controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False)
 controlled_animation.start()
-
+l0 = l0 / L
 fig2, (a0, a1) = plt.subplots(1, 2, figsize=(12, 6))
-print(node_data)
 node_data = node_data / L
-a1.plot(node_data, u[DOF * vi + 5, 0] - 1, label="FEM")
-a1.plot(node_data, max_load / (ElasticityExtension[2, 2]) * (1. - (1. / (np.cosh(1. / 2. / l0)) * (np.cosh((1. - 2 * node_data) / 2. / l0)))), label="ANALYTICAL")
-a0.plot(node_data, u[DOF * vi + 2, 0] - node_data, label="FEM")
-a0.plot(node_data, max_load / (ElasticityExtension[2, 2]) * (node_data - l0 * np.tanh(1 / 2 / l0) + l0 * (1. / (np.cosh(1. / 2. / l0)) * (np.sinh((1. - 2 * node_data) / 2. / l0)))), label="ANALYTICAL")
+
+M0 = max_load / (E0 * (A * l0 ** 2 + i0) * L)
+ETA = np.sqrt(i0 * l0 ** 2 / (i0 + A * l0 ** 2))
+a0.plot(node_data, u[DOF * vi + 6, 0], label="FEM")
+a0.plot(node_data, M0 * (node_data - ETA * np.tanh(1 / 2 / ETA) + ETA * np.sinh((1 - 2 * node_data) / 2 / ETA) / np.cosh(1 / 2 / ETA)), label="ANALYTICAL")
+a1.plot(node_data, u[DOF * vi + 9, 0], label="FEM")
+a1.plot(node_data, M0 * (1 - np.cosh((1 - 2 * node_data) / 2 / ETA) / np.cosh(1 / 2 / ETA)), label="ANALYTICAL")
 a1.legend()
 a0.legend()
 a0.set_title("DISPLACEMENT")
 a1.set_title("STRAIN")
-# print(u[DOF * vi + 2, 0] - node_data)
-# print(max_load / (ElasticityExtension[2, 2]) * (node_data - l0 * np.tanh(1 / 2 / l0) + l0 * (1. / (np.cosh(1. / 2. / l0)) * (np.sinh((1. - 2 * node_data) / 2. / l0)))))
+
 # df1 = pd.DataFrame([node_data])
 # df1.loc[len(df1)] = u[DOF * vi + 5, 0] - 1
 # df2 = pd.DataFrame([node_data])
