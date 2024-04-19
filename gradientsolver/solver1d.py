@@ -539,12 +539,12 @@ def e_g(n_, nx_, nxx_, rds, rdsds):
     c = np.zeros((12, 12))
     rds = skew(rds)
     rdsds = skew(rdsds)
-    c[3: 6, 0: 3] = i * nxx_[0]
-    c[3: 6, 3: 6] = i * nxx_[1]
-    c[3: 6, 6: 9] = rdsds * n_[0] + rds * nx_[0]
-    c[3: 6, 9: 12] = rdsds * n_[1] + rds * nx_[1]
-    c[9: 12, 6: 9] = i * nxx_[0]
-    c[9: 12, 9: 12] = i * nxx_[1]
+    c[0: 3, 0: 3] = i * nxx_[0]
+    c[0: 3, 3: 6] = i * nxx_[1]
+    c[0: 3, 6: 9] = rdsds * n_[0] + rds * nx_[0]
+    c[0: 3, 9: 12] = rdsds * n_[1] + rds * nx_[1]
+    c[6: 9, 6: 9] = i * nxx_[0]
+    c[6: 9, 9: 12] = i * nxx_[1]
     return c
 
 

@@ -40,7 +40,7 @@ def fea(load_iter_, is_halt=False):
         # s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
         # FG[-12: -9] = s
         # Pure Bending
-        FG[-11, 0] = fapp__[load_iter_]
+        FG[-6, 0] = fapp__[load_iter_]
         for elm in range(numberOfElements):
             n = icon[elm][1:]
             xloc = node_data[n][:, None]
@@ -68,7 +68,7 @@ def fea(load_iter_, is_halt=False):
                 v = Rot.T @ rds
                 Rotds = Rot @ sol.skew(k)
                 vp = Rotds.T @ rds + Rot.T @ rdsds
-                # print(v[:, 0])
+                print(v[:, 0])
                 gloc[0: 3] = Rot @ ElasticityExtension @ (v - np.array([0, 0, 1])[:, None])
                 gloc[3: 6] = Rot @ ElasticityExtensionH @ vp
                 gloc[6: 9] = Rot @ ElasticityBending @ k
@@ -88,7 +88,7 @@ def fea(load_iter_, is_halt=False):
         # dsf = tg - KG
         for ibc in range(12):
             sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
-       # sol.impose_boundary_condition(KG, FG, -3, 0)
+        sol.impose_boundary_condition(KG, FG, -3, 0)
         du = -sol.get_displacement_vector(KG, FG)
         residue_norm = np.linalg.norm(FG)
 
@@ -131,7 +131,7 @@ DOF = 12
 MAX_ITER = 20  # Max newton raphson iteration
 element_type = 2
 L = 1
-numberOfElements = 40
+numberOfElements = 20
 
 icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
 numberOfNodes = len(node_data)
