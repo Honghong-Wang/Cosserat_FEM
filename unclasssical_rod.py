@@ -37,10 +37,10 @@ def fea(load_iter_, is_halt=False):
     for iter_ in range(MAX_ITER):
         KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
         # Follower load
-        # s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
-        # FG[-12: -9] = s
+        s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
+        FG[-12: -9] = s
         # Pure Bending
-        FG[-6, 0] = fapp__[load_iter_]
+        # FG[-6, 0] = fapp__[load_iter_] * 0
         for elm in range(numberOfElements):
             n = icon[elm][1:]
             xloc = node_data[n][:, None]
@@ -68,7 +68,7 @@ def fea(load_iter_, is_halt=False):
                 v = Rot.T @ rds
                 Rotds = Rot @ sol.skew(k)
                 vp = Rotds.T @ rds + Rot.T @ rdsds
-                print(v[:, 0])
+                # print(v[:, 0])
                 gloc[0: 3] = Rot @ ElasticityExtension @ (v - np.array([0, 0, 1])[:, None])
                 gloc[3: 6] = Rot @ ElasticityExtensionH @ vp
                 gloc[6: 9] = Rot @ ElasticityBending @ k
@@ -82,9 +82,9 @@ def fea(load_iter_, is_halt=False):
             FG[iv[:, None], 0] += floc
             KG[iv[:, None], iv] += kloc
         # TODO: Make a generalized function for application of point as well as body loads
-        # f = np.zeros((6, 6))
-        # f[0: 3, 3: 6] = -sol.skew(s)
-        # KG[-6:, -6:] += f
+        f = np.zeros((12, 12))
+        f[0: 3, 6: 9] = -sol.skew(s)
+        KG[-12:, -12:] += f
         # dsf = tg - KG
         for ibc in range(12):
             sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
@@ -128,7 +128,7 @@ Set Finite Element Parameters
 DIMENSIONS = 1
 DOF = 12
 
-MAX_ITER = 20  # Max newton raphson iteration
+MAX_ITER = 60  # Max newton raphson iteration
 element_type = 2
 L = 1
 numberOfElements = 20
@@ -214,8 +214,8 @@ ax.plot(r3, r2, label="un-deformed", marker="o")
 """
 Set load and load steps
 """
-max_load = 2 * np.pi * E0 * i0 / L
-# max_load = 30 * E0 * i0
+# max_load = 2 * np.pi * E0 * i0 / L
+max_load = 30 * E0 * i0
 LOAD_INCREMENTS = 31  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 

@@ -623,7 +623,7 @@ def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs
             A3 = Ei @ pi_l(rmat) @ d_l(ds, db) @ pi_lds(rmatds).T @ E_lj
             A4 = Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(ds, db) @ pi_uds(rmatds).T @ E_uj
             A5 = Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(ds, db) @ pi_u(rmat).T @ E_gj
-            A6 = Hmati.T @ matn(nmat, nbmat) @ E_fj
+            A6 = Hmati @ matn(nmat, nbmat) @ E_fj.T
             k[dof * i: dof * (i + 1), dof * j: dof * (j + 1)] += (A1 + A2 + A3 + A4 + A5 + A6)
     return k, r
 
