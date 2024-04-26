@@ -573,10 +573,12 @@ FORCES/STRESSES
 """
 
 
-def matn(n, nb):
+def matn(n, nb, nx_, nxx_):
     c = np.zeros((12, 12))
-    c[6: 9, 6: 9] = skew(n)
-    c[9: 12, 9: 12] = skew(nb)
+    c[6: 9, 0: 3] = skew(n) * nx_[0] + skew(nb) * nxx_[0]
+    c[6: 9, 3: 6] = skew(n) * nx_[1] + skew(nb) * nxx_[1]
+    c[9: 12, 0: 3] = skew(nb) * nx_[0]
+    c[9: 12, 3: 6] = skew(nb) * nx_[1]
     return c
 
 
@@ -623,7 +625,7 @@ def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs
             A3 = Ei @ pi_l(rmat) @ d_l(ds, db) @ pi_lds(rmatds).T @ E_lj
             A4 = Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(ds, db) @ pi_uds(rmatds).T @ E_uj
             A5 = Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(ds, db) @ pi_u(rmat).T @ E_gj
-            A6 = Hmati @ matn(nmat, nbmat) @ E_fj.T
+            A6 = Hmati.T @ matn(nmat, nbmat, hj_, hj__)
             k[dof * i: dof * (i + 1), dof * j: dof * (j + 1)] += (A1 + A2 + A3 + A4 + A5 + A6)
     return k, r
 
