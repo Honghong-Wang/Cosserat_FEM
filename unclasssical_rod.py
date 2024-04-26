@@ -117,8 +117,8 @@ def fea(load_iter_, is_halt=False):
             "--------------------------------------------------------------------------------------------------------------------------------------------------",
             fapp__[load_iter_], load_iter_)
         print(residue_norm, increments_norm)
-        vv = np.array([i for i in range(numberOfNodes) if i % 2 == 0])
-        print(u[DOF * vv + 6, 0])
+        # vv = np.array([i for i in range(numberOfNodes) if i % 2 == 0])
+        # print(u[DOF * vv + 6, 0])
     return is_halt
 
 
