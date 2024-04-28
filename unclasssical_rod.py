@@ -147,7 +147,7 @@ nodesPerElement = element_type ** DIMENSIONS
 SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
-l0 = 0.001
+l0 = 0.00
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -310,3 +310,4 @@ a1.set_title("STRAIN")
 # df1.to_csv('GFG1.csv', index=False, header=False)
 # df2.to_csv('GFG2.csv', index=False, header=False)
 plt.show()
+print(max_load * L / GA / 2, u[-12:])

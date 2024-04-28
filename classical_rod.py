@@ -103,8 +103,8 @@ ax.plot(r3, r2, label="un-deformed", marker="o")
 """
 Set load and load steps
 """
-max_load = 2 * np.pi * E0 * i0 / L
-# max_load = 30 * E0 * i0
+# max_load = 2 * np.pi * E0 * i0 / L
+max_load = 30 * E0 * i0
 LOAD_INCREMENTS = 31  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 
@@ -127,10 +127,10 @@ def fea(load_iter_, is_halt=False):
     for iter_ in range(MAX_ITER):
         KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
         # Follower load
-        s = sol.get_rotation_from_theta_tensor(u[-3:, 0]) @ np.array([0, fapp__[load_iter_], 0])[:, None] * 0
+        s = sol.get_rotation_from_theta_tensor(u[-3:, 0]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
         FG[-6:-3] = s
         # Pure Bending
-        FG[-5, 0] = fapp__[load_iter_]
+        # FG[-5, 0] = fapp__[load_iter_] * 0
         for elm in range(numberOfElements):
             n = icon[elm][1:]
             xloc = node_data[n][:, None]
