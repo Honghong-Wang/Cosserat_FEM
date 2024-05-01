@@ -5,6 +5,7 @@ go to etc. for other methods to interpolate rotations
 """
 import numpy as np
 from gradientsolver import solver1d as sol
+from scipy import linalg as la
 from include import slerp as slerpsol, quaternion_smith as quat_sol
 import matplotlib.pyplot as plt
 from include.AnimationController import ControlledAnimation
@@ -34,13 +35,17 @@ def fea(load_iter_, is_halt=False):
     global residue_norm
     global increments_norm
     global is_log_residue
+    global KG0
+    global FG0
+    KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
     for iter_ in range(MAX_ITER):
-        KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
+        KG *= 0
+        FG *= 0
         # Follower load
-        s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None]
-        FG[-12: -9] = s
+        s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None] * 0
+        # FG[-12: -9] = s
         # Pure Bending
-        # FG[-6, 0] = fapp__[load_iter_] * 0
+        FG[-11, 0] = fapp__[load_iter_]
         for elm in range(numberOfElements):
             n = icon[elm][1:]
             xloc = node_data[n][:, None]
@@ -89,6 +94,7 @@ def fea(load_iter_, is_halt=False):
         for ibc in range(12):
             sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
         sol.impose_boundary_condition(KG, FG, -3, 0)
+
         du = -sol.get_displacement_vector(KG, FG)
         residue_norm = np.linalg.norm(FG)
 
@@ -113,6 +119,10 @@ def fea(load_iter_, is_halt=False):
         u += du
 
     if is_log_residue:
+        if load_iter_ == 0:
+            KG0, FG0 = KG, FG
+        if load_iter_ > 1:
+            print(np.sort(la.eigvals(KG, KG0).real))
         print(
             "--------------------------------------------------------------------------------------------------------------------------------------------------",
             fapp__[load_iter_], load_iter_)
@@ -142,12 +152,13 @@ wgp, gp = sol.init_gauss_points(ngpt)
 u = np.zeros((numberOfNodes * DOF, 1))
 du = np.zeros((numberOfNodes * DOF, 1))
 nodesPerElement = element_type ** DIMENSIONS
+KG0, FG0 = sol.init_stiffness_force(numberOfNodes, DOF)
 
 """
 SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
-l0 = 0.001
+l0 = 0.00
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -215,10 +226,9 @@ ax.plot(r3, r2, label="un-deformed", marker="o")
 Set load and load steps
 """
 # max_load = 2 * np.pi * E0 * i0 / L
-max_load = 30 * E0 * i0
+max_load = 10 * E0 * i0
 LOAD_INCREMENTS = 31  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
-
 
 marker_ = np.linspace(0, max_load, LOAD_INCREMENTS)
 # marker_ = np.insert(marker_, 0, [2000, 6000, 12000], axis=0)
@@ -310,3 +320,4 @@ a1.set_title("STRAIN")
 # df1.to_csv('GFG1.csv', index=False, header=False)
 # df2.to_csv('GFG2.csv', index=False, header=False)
 plt.show()
+print("Buckling load for l = 0 : ", 4.103 / L / L * np.sqrt(ElasticityBending[1, 1] * ElasticityBending[2, 2]))
