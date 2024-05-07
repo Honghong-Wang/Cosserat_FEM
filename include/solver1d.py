@@ -36,6 +36,19 @@ def impose_boundary_condition(k, f, ibc, bc):
     k[ibc, ibc] = 1
 
 
+def impose_boundary_condition_bukl(k,  ibc, bc):
+    """
+    Elimination of variables, modifies incoming stiffness and force vector
+    :param k: Stiffness matrix / Tangent stiffness
+    :param f: force vector / residue
+    :param ibc: node at with BC is prescribed
+    :param bc: boundary condition
+    """
+    k[:, ibc] = 0
+    k[ibc, :] = 0
+    k[ibc, ibc] = 1
+
+
 def get_displacement_vector(k, f):
     """
     :param k: Non-singular stiffness matrix
@@ -272,7 +285,7 @@ def get_e(dof, n, n_, rds):
     return e
 
 
-def get_tangent_stiffness_residue(n_tensor, m_tensor, n, nx, dof, pi, c, rds, gloc, ncforce=None):
+def get_tangent_stiffness_residue(n_tensor, m_tensor, n, nx, dof, pi, c, rds, gloc, ncforce=None, buckling=False):
     """
     :param gloc: gloc
     :param rds: rds
@@ -284,6 +297,7 @@ def get_tangent_stiffness_residue(n_tensor, m_tensor, n, nx, dof, pi, c, rds, gl
     :param n: shape function
     :param nx: derivative of shape function
     :param ncforce: non-conservative force body force
+    :param buckling: buckling
     :return: geometric stiffness matrix
     """
     nmmat = np.zeros((6, 6))
@@ -299,13 +313,19 @@ def get_tangent_stiffness_residue(n_tensor, m_tensor, n, nx, dof, pi, c, rds, gl
     nmmat[3: 6, 3: 6] = -m_tensor
     nmat[3: 6, 0: 3] = n_tensor
     k = np.zeros((dof * len(n), dof * len(n)))
+    k0 = np.zeros((dof * len(n), dof * len(n)))
+    kg = np.zeros((dof * len(n), dof * len(n)))
     r = np.zeros((dof * len(n), 1))
     for i in range(len(n)):
         r[6 * i: 6 * (i + 1)] += get_e(dof, n[i][0], nx[i][0], rds) @ gloc
         for j in range(len(n)):
             k[6 * i: (i + 1) * 6, 6 * j: (j + 1) * 6] += get_e(dof, n[i][0], nx[i][0], rds) @ pi @ c @ pi.T @ get_e(dof, n[j][0], nx[j][0], rds).T + n[j][0] *\
                                                          get_e(dof, n[i][0], nx[i][0], rds) @ nmmat + n[i][0] * nx[j][0] * nmat + fn[i][0] * fn[j][0] * f
-
+            if buckling:
+                k0[6 * i: (i + 1) * 6, 6 * j: (j + 1) * 6] += get_e(dof, n[i][0], nx[i][0], rds) @ pi @ c @ pi.T @ get_e(dof, n[j][0], nx[j][0], rds).T
+                kg[6 * i: (i + 1) * 6, 6 * j: (j + 1) * 6] += get_e(dof, n[i][0], nx[i][0], rds) @ nmmat + n[i][0] * nx[j][0] * nmat
+    if buckling:
+        return k, r, k0, kg
     return k, r
 
 

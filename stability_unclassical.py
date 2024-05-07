@@ -122,7 +122,7 @@ def fea(load_iter_, is_halt=False):
         if load_iter_ == 0:
             KG0, FG0 = KG, FG
         if load_iter_ > 1:
-            print(np.sort(la.eigvals(KG, KG0).real))
+            print(np.sort(la.eigvals(KG).real))
         print(
             "--------------------------------------------------------------------------------------------------------------------------------------------------",
             fapp__[load_iter_], load_iter_)
@@ -141,7 +141,7 @@ DOF = 12
 MAX_ITER = 60  # Max newton raphson iteration
 element_type = 2
 L = 1
-numberOfElements = 20
+numberOfElements = 10
 
 icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
 numberOfNodes = len(node_data)
@@ -158,7 +158,7 @@ KG0, FG0 = sol.init_stiffness_force(numberOfNodes, DOF)
 SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
-l0 = 0.00
+l0 = 0.3
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -167,12 +167,20 @@ i0 = np.pi * d ** 4 / 64
 J = i0 * 2
 EI = 3.5 * 10 ** 7
 GA = 1.6 * 10 ** 8
-ElasticityExtension = np.array([[G0 * A, 0, 0],
-                                [0, G0 * A, 0],
-                                [0, 0, E0 * A]])
-ElasticityBending = np.array([[E0 * i0 + l0 ** 2 * E0 * A, 0, 0],
-                              [0, E0 * i0 + l0 ** 2 * E0 * A, 0],
-                              [0, 0, G0 * J + 2 * l0 ** 2 * G0 * A]])
+ElasticityExtension = np.array([[100, 0, 0],
+                                [0, 100, 0],
+                                [0, 0, 100]])
+ElasticityBending = np.array([[100000, 0, 0],
+                              [0, 1, 0],
+                              [0, 0, 1]])
+print("Buckling load for l = 0 : ", 4.013 / L / L * np.sqrt(ElasticityBending[1, 1] * ElasticityBending[2, 2]))
+
+# ElasticityExtension = np.array([[G0 * A, 0, 0],
+#                                 [0, G0 * A, 0],
+#                                 [0, 0, E0 * A]])
+# ElasticityBending = np.array([[100 * E0 * i0 + l0 ** 2 * E0 * A, 0, 0],
+#                               [0, E0 * i0 + l0 ** 2 * E0 * A, 0],
+#                               [0, 0, G0 * J + 2 * l0 ** 2 * G0 * A]])
 
 ElasticityExtensionH = l0 ** 2 * np.array([[G0 * A, 0, 0],
                                            [0, G0 * A, 0],
@@ -226,7 +234,7 @@ ax.plot(r3, r2, label="un-deformed", marker="o")
 Set load and load steps
 """
 # max_load = 2 * np.pi * E0 * i0 / L
-max_load = 10 * E0 * i0
+max_load = 30
 LOAD_INCREMENTS = 31  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 
