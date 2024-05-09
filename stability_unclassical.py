@@ -37,6 +37,8 @@ def fea(load_iter_, is_halt=False):
     global is_log_residue
     global KG0
     global FG0
+    global u_buckled
+    global is_buckled
     KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
     for iter_ in range(MAX_ITER):
         KG *= 0
@@ -116,13 +118,21 @@ def fea(load_iter_, is_halt=False):
         Approx. configuration update
         """
         # TODO: Change this, it works perfectly if two rotations are about one axis (R_(i+1) = exp(dtheta_i) * exp(theta_i))
-        u += du
+        u += du + u_buckled
 
     if is_log_residue:
-        if load_iter_ == 0:
-            KG0, FG0 = KG, FG
-        if load_iter_ > 1:
-            print(np.sort(la.eigvals(KG).real))
+        if False or not is_buckled:
+            eigenvalues, eigenvectors = la.eig(KG)
+            eigenvalues = eigenvalues.real
+            idx = eigenvalues.argsort()
+            eigenvalues = eigenvalues[idx]
+            eigenvectors = eigenvectors[:, idx].T
+            if eigenvalues[0] < 0:
+                print(eigenvectors[1, :])
+                u_buckled = eigenvectors[1, :][:, None]
+                is_buckled = True
+        else:
+            u_buckled = u * 0
         print(
             "--------------------------------------------------------------------------------------------------------------------------------------------------",
             fapp__[load_iter_], load_iter_)
@@ -141,7 +151,7 @@ DOF = 12
 MAX_ITER = 60  # Max newton raphson iteration
 element_type = 2
 L = 1
-numberOfElements = 10
+numberOfElements = 20
 
 icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
 numberOfNodes = len(node_data)
@@ -153,12 +163,14 @@ u = np.zeros((numberOfNodes * DOF, 1))
 du = np.zeros((numberOfNodes * DOF, 1))
 nodesPerElement = element_type ** DIMENSIONS
 KG0, FG0 = sol.init_stiffness_force(numberOfNodes, DOF)
-
+u_buckled = np.zeros_like(u)
+is_buckled = False
 """
 SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
-l0 = 0.000
+max_load = 4.3
+l0 = 0.00
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -167,14 +179,16 @@ i0 = np.pi * d ** 4 / 64
 J = i0 * 2
 EI = 3.5 * 10 ** 7
 GA = 1.6 * 10 ** 8
-ElasticityExtension = np.array([[1000, 0, 0],
-                                [0, 1000, 0],
-                                [0, 0, 1000]])
-ElasticityBending = np.array([[1000, 0, 0],
-                              [0, 1, 0],
-                              [0, 0, 1]])
+ElasticityExtension = 100000 * np.array([[1, 0, 0],
+                                [0, 1, 0],
+                                [0, 0, 1]])
+ElasticityBending = np.array([[10000 + l0 ** 2, 0, 0],
+                              [0, 1 + l0 ** 2, 0],
+                              [0, 0, 1 + 2 * l0 ** 2]])
 ElasticityExtensionH = l0 ** 2 * ElasticityExtension
-ElasticityBendingH = l0 ** 2 * ElasticityBending
+ElasticityBendingH = l0 ** 2 * np.array([[10000, 0, 0],
+                                         [0, 1, 0],
+                                         [0, 0, 1]])
 print("Buckling load for l = 0 : ", 4.013 / L / L * np.sqrt(ElasticityBending[1, 1] * ElasticityBending[2, 2]))
 
 # ElasticityExtension = np.array([[G0 * A, 0, 0],
@@ -236,9 +250,8 @@ ax.plot(r3, r2, label="un-deformed", marker="o")
 Set load and load steps
 """
 # max_load = 2 * np.pi * E0 * i0 / L
-max_load = 6
-LOAD_INCREMENTS = 31  # Follower load usually needs more steps compared to dead or pure bending
-fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
+LOAD_INCREMENTS = 51  # Follower load usually needs more steps compared to dead or pure bending
+fapp__ = np.linspace(0, max_load, LOAD_INCREMENTS)
 
 marker_ = np.linspace(0, max_load, LOAD_INCREMENTS)
 # marker_ = np.insert(marker_, 0, [2000, 6000, 12000], axis=0)
@@ -309,20 +322,18 @@ ay.set_title("Tip Displacement vs Load")
 controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_request=video_request, repeat=False)
 controlled_animation.start()
 l0 = l0 / L
-fig2, (a0, a1) = plt.subplots(1, 2, figsize=(12, 6))
-node_data = node_data / L
-
-M0 = max_load / (E0 * (A * l0 ** 2 + i0) * L)
-ETA = np.sqrt(i0 * l0 ** 2 / (i0 + A * l0 ** 2))
-a0.plot(node_data, u[DOF * vi + 6, 0], label="FEM")
-a0.plot(node_data, M0 * (node_data - ETA * np.tanh(1 / 2 / ETA) + ETA * np.sinh((1 - 2 * node_data) / 2 / ETA) / np.cosh(1 / 2 / ETA)), label="ANALYTICAL")
-a1.plot(node_data, u[DOF * vi + 9, 0], label="FEM")
-a1.plot(node_data, M0 * (1 - np.cosh((1 - 2 * node_data) / 2 / ETA) / np.cosh(1 / 2 / ETA)), label="ANALYTICAL")
-a1.legend()
-a0.legend()
-a0.set_title("DISPLACEMENT")
-a1.set_title("STRAIN")
-
+from mpl_toolkits import mplot3d
+fig4 = plt.figure(figsize=(10, 10))
+a0 = plt.axes(projection='3d')
+a0.grid()
+y = u_buckled[DOF * vi + 1, 0]
+x = u_buckled[DOF * vi + 2, 0]
+z = u_buckled[DOF * vi + 3, 0]
+a0.plot3D(x, y, z)
+y = u[DOF * vi + 1, 0]
+x = u[DOF * vi + 2, 0]
+z = u[DOF * vi + 3, 0]
+a0.plot3D(x, y, z)
 # df1 = pd.DataFrame([node_data])
 # df1.loc[len(df1)] = u[DOF * vi + 5, 0] - 1
 # df2 = pd.DataFrame([node_data])
