@@ -6,6 +6,7 @@ Newton raphson is used as iterative process, Refer to [lectures](https://www.you
 **Essentials**
 - [numpy](https://numpy.org/)
 - [matplotlib](https://matplotlib.org/)
+- [scipy](https://scipy.org/install/)
 
 **Optional**
 - [FFmpeg](https://ffmpeg.org/) to generate video
