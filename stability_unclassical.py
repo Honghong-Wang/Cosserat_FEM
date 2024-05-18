@@ -4,6 +4,7 @@ classical_rod.py works using quaternions for rotation interpolations,
 go to etc. for other methods to interpolate rotations
 """
 import numpy as np
+import time
 from gradientsolver import solver1d as sol
 from scipy import linalg as la
 from include import slerp as slerpsol, quaternion_smith as quat_sol
@@ -39,6 +40,7 @@ def fea(load_iter_, is_halt=False):
     global FG0
     global u_buckled
     global is_buckled
+    global u_pre
     KG, FG = sol.init_stiffness_force(numberOfNodes, DOF)
     for iter_ in range(MAX_ITER):
         KG *= 0
@@ -80,8 +82,10 @@ def fea(load_iter_, is_halt=False):
                 gloc[3: 6] = Rot @ ElasticityExtensionH @ vp
                 gloc[6: 9] = Rot @ ElasticityBending @ k
                 gloc[9: 12] = Rot @ ElasticityBendingH @ kp
-                tangent, res = sol.get_higher_order_tangent_residue(N_, Nx_, Nxx_, rds, rdsds, Rot, Rotds, ElasticityExtension,
-                                                                    ElasticityBending, ElasticityExtensionH, ElasticityBendingH, k, DOF, gloc, element_type)
+                tangent, res = sol.get_higher_order_tangent_residue(N_, Nx_, Nxx_, rds, rdsds, Rot, Rotds,
+                                                                    ElasticityExtension,
+                                                                    ElasticityBending, ElasticityExtensionH,
+                                                                    ElasticityBendingH, k, DOF, gloc, element_type)
                 floc += res * wgp[xgp] * Jac
                 kloc += tangent * wgp[xgp] * Jac
             iv = np.array(sol.get_assembly_vector(DOF, n))
@@ -118,7 +122,7 @@ def fea(load_iter_, is_halt=False):
         Approx. configuration update
         """
         # TODO: Change this, it works perfectly if two rotations are about one axis (R_(i+1) = exp(dtheta_i) * exp(theta_i))
-        u += du + u_buckled
+        u += du
 
     if is_log_residue:
         if False or not is_buckled:
@@ -126,13 +130,18 @@ def fea(load_iter_, is_halt=False):
             eigenvalues = eigenvalues.real
             idx = eigenvalues.argsort()
             eigenvalues = eigenvalues[idx]
-            eigenvectors = eigenvectors[:, idx].T
+            eigenvectors = eigenvectors[:, idx]
             if eigenvalues[0] < 0:
-                print(eigenvectors[1, :])
-                u_buckled = eigenvectors[1, :][:, None]
+                print(eigenvalues)
+                u_buckled = eigenvectors[:, 23][:, None]
+                u_pre = u / np.linalg.norm(u)
+                u_buckled = u_pre - u_buckled / np.linalg.norm(u_buckled)
+                u_buckled = u_buckled / np.linalg.norm(u_buckled)
+
                 is_buckled = True
         else:
-            u_buckled = u * 0
+            pass
+        # u_buckled = u * 0
         print(
             "--------------------------------------------------------------------------------------------------------------------------------------------------",
             fapp__[load_iter_], load_iter_)
@@ -164,13 +173,15 @@ du = np.zeros((numberOfNodes * DOF, 1))
 nodesPerElement = element_type ** DIMENSIONS
 KG0, FG0 = sol.init_stiffness_force(numberOfNodes, DOF)
 u_buckled = np.zeros_like(u)
+u_pre = np.zeros_like(u)
 is_buckled = False
 """
 SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
-max_load = 4.3
-l0 = 0.00
+max_load = 5
+l0 = 0.0
+LOAD_INCREMENTS = 31  # Follower load usually needs more steps compared to dead or pure bending
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -179,14 +190,17 @@ i0 = np.pi * d ** 4 / 64
 J = i0 * 2
 EI = 3.5 * 10 ** 7
 GA = 1.6 * 10 ** 8
-ElasticityExtension = 100000 * np.array([[1, 0, 0],
-                                [0, 1, 0],
-                                [0, 0, 1]])
-ElasticityBending = np.array([[10000 + l0 ** 2, 0, 0],
-                              [0, 1 + l0 ** 2, 0],
-                              [0, 0, 1 + 2 * l0 ** 2]])
+mul = 1
+alpha = 1000
+exmul = 1
+ElasticityExtension = exmul * mul * np.array([[1, 0, 0],
+                                              [0, 1, 0],
+                                              [0, 0, 1]])
+ElasticityBending = np.array([[alpha + l0 ** 2 * mul, 0, 0],
+                              [0, 1 + mul * l0 ** 2, 0],
+                              [0, 0, 1 + mul * 2 * l0 ** 2]])
 ElasticityExtensionH = l0 ** 2 * ElasticityExtension
-ElasticityBendingH = l0 ** 2 * np.array([[10000, 0, 0],
+ElasticityBendingH = l0 ** 2 * np.array([[alpha, 0, 0],
                                          [0, 1, 0],
                                          [0, 0, 1]])
 print("Buckling load for l = 0 : ", 4.013 / L / L * np.sqrt(ElasticityBending[1, 1] * ElasticityBending[2, 2]))
@@ -250,7 +264,6 @@ ax.plot(r3, r2, label="un-deformed", marker="o")
 Set load and load steps
 """
 # max_load = 2 * np.pi * E0 * i0 / L
-LOAD_INCREMENTS = 51  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = np.linspace(0, max_load, LOAD_INCREMENTS)
 
 marker_ = np.linspace(0, max_load, LOAD_INCREMENTS)
@@ -323,17 +336,19 @@ controlled_animation = ControlledAnimation(fig, act, frames=len(fapp__), video_r
 controlled_animation.start()
 l0 = l0 / L
 from mpl_toolkits import mplot3d
+
 fig4 = plt.figure(figsize=(10, 10))
 a0 = plt.axes(projection='3d')
 a0.grid()
 y = u_buckled[DOF * vi + 1, 0]
 x = u_buckled[DOF * vi + 2, 0]
 z = u_buckled[DOF * vi + 3, 0]
-a0.plot3D(x, y, z)
-y = u[DOF * vi + 1, 0]
-x = u[DOF * vi + 2, 0]
-z = u[DOF * vi + 3, 0]
-a0.plot3D(x, y, z)
+a0.plot3D(x, y, z, label="b")
+y = u_pre[DOF * vi + 1, 0]
+x = u_pre[DOF * vi + 2, 0]
+z = u_pre[DOF * vi + 3, 0]
+a0.plot3D(x, y, z, label="nb")
+a0.legend()
 # df1 = pd.DataFrame([node_data])
 # df1.loc[len(df1)] = u[DOF * vi + 5, 0] - 1
 # df2 = pd.DataFrame([node_data])
@@ -341,4 +356,5 @@ a0.plot3D(x, y, z)
 # df1.to_csv('GFG1.csv', index=False, header=False)
 # df2.to_csv('GFG2.csv', index=False, header=False)
 plt.show()
-print("Buckling load for l = 0 : ", 4.103 / L / L * np.sqrt(ElasticityBending[1, 1] * ElasticityBending[2, 2]))
+print("Buckling load for l = 0 : ", 4.013 / L / L * np.sqrt(ElasticityBending[1, 1] * ElasticityBending[2, 2]))
+print(u[-12:, 0])
