@@ -139,7 +139,7 @@ def fea(load_iter_, is_halt=False):
                 print("-----------------------------------")
                 u_buckled = eigenvectors[:, 0][:, None]
                 u_pre = u
-                u_buckled = -u_buckled + u_pre
+                u_buckled = u_buckled + u_pre
 
                 print(u_buckled[DOF * mvi + 5, 0])
                 print(u_pre[DOF * mvi + 5, 0])
@@ -175,7 +175,7 @@ DOF = 12
 MAX_ITER = 60  # Max newton raphson iteration
 element_type = 2
 L = 1
-numberOfElements = 10
+numberOfElements = 20
 
 icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
 numberOfNodes = len(node_data)
@@ -195,8 +195,8 @@ SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
 
-l0 = 0.00
-LOAD_INCREMENTS = 11  # Follower load usually needs more steps compared to dead or pure bending
+l0 = 0.5
+LOAD_INCREMENTS = 121  # Follower load usually needs more steps compared to dead or pure bending
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -205,33 +205,33 @@ i0 = np.pi * d ** 4 / 64
 J = i0 * 2
 EI = 3.5 * 10 ** 7
 GA = 1.6 * 10 ** 8
-mul = 1
-alpha = 10
+mul = 1000
+alpha = 10000
 exmul = 1
-max_load = 20
-ElasticityExtension = np.array([[G0 * A, 0, 0],
-                                [0, G0 * A, 0],
-                                [0, 0, E0 * A]])
-ElasticityBending = np.array([[alpha * E0 * i0 + l0 ** 2 * E0 * A, 0, 0],
-                              [0, E0 * i0 + l0 ** 2 * E0 * A, 0],
-                              [0, 0, G0 * J + 2 * l0 ** 2 * G0 * A]])
-
-ElasticityExtensionH = l0 ** 2 * np.array([[G0 * A, 0, 0],
-                                           [0, G0 * A, 0],
-                                           [0, 0, E0 * A]])
-ElasticityBendingH = np.array([[alpha * E0 * i0 * l0 ** 2, 0, 0],
-                               [0, E0 * i0 * l0 ** 2, 0],
-                               [0, 0, G0 * J * l0 ** 2]])
-# ElasticityExtension = exmul * mul * np.array([[1, 0, 0],
-#                                               [0, 1, 0],
-#                                               [0, 0, 1]])
-# ElasticityBending = np.array([[alpha + l0 ** 2 * mul, 0, 0],
-#                               [0, 1 + mul * l0 ** 2, 0],
-#                               [0, 0, 1 + mul * 2 * l0 ** 2]])
-# ElasticityExtensionH = l0 ** 2 * ElasticityExtension
-# ElasticityBendingH = l0 ** 2 * np.array([[alpha, 0, 0],
-#                                          [0, 1, 0],
-#                                          [0, 0, 1]])
+max_load = 1560
+# ElasticityExtension = np.array([[G0 * A, 0, 0],
+#                                 [0, G0 * A, 0],
+#                                 [0, 0, E0 * A]])
+# ElasticityBending = np.array([[alpha * E0 * i0 + l0 ** 2 * E0 * A, 0, 0],
+#                               [0, E0 * i0 + l0 ** 2 * E0 * A, 0],
+#                               [0, 0, G0 * J + 2 * l0 ** 2 * G0 * A]])
+#
+# ElasticityExtensionH = l0 ** 2 * np.array([[G0 * A, 0, 0],
+#                                            [0, G0 * A, 0],
+#                                            [0, 0, E0 * A]])
+# ElasticityBendingH = np.array([[alpha * E0 * i0 * l0 ** 2, 0, 0],
+#                                [0, E0 * i0 * l0 ** 2, 0],
+#                                [0, 0, G0 * J * l0 ** 2]])
+ElasticityExtension = exmul * mul * np.array([[1, 0, 0],
+                                              [0, 1, 0],
+                                              [0, 0, 1]])
+ElasticityBending = np.array([[alpha + l0 ** 2 * mul, 0, 0],
+                              [0, 1 + mul * l0 ** 2, 0],
+                              [0, 0, 1 + mul * 2 * l0 ** 2]])
+ElasticityExtensionH = l0 ** 2 * ElasticityExtension
+ElasticityBendingH = l0 ** 2 * np.array([[alpha, 0, 0],
+                                         [0, 1, 0],
+                                         [0, 0, 1]])
 print(ElasticityExtension)
 print(ElasticityBending)
 print(ElasticityBendingH)
@@ -297,9 +297,11 @@ ax.plot(r3, r2, label="un-deformed", marker="o")
 Set load and load steps
 """
 # max_load = 2 * np.pi * E0 * i0 / L
-fapp__ = np.linspace(0, max_load, LOAD_INCREMENTS)
+#fapp__ = np.linspace(0, max_load, LOAD_INCREMENTS)
+fapp__ = np.linspace(1540, max_load, LOAD_INCREMENTS - 20)
+fapp__ = np.hstack((np.linspace(0, 1540, 20), fapp__))
 
-marker_ = np.linspace(0, max_load, LOAD_INCREMENTS)
+marker_ = fapp__
 # marker_ = np.insert(marker_, 0, [2000, 6000, 12000], axis=0)
 """
 ------------------------------------------------------------------------------------------------------------------------------------
@@ -373,16 +375,15 @@ from mpl_toolkits import mplot3d
 fig4 = plt.figure(figsize=(10, 10))
 a0 = plt.axes(projection='3d')
 a0.grid()
-x = u_buckled[DOF * vi + 1, 0]
+z = u_buckled[DOF * vi + 1, 0]
 y = u_buckled[DOF * vi + 2, 0]
-z = u_buckled[DOF * vi + 3, 0]
+x = u_buckled[DOF * vi + 3, 0]
 a0.plot3D(x, y, z, label="b")
-x1 = u_pre[DOF * vi + 1, 0]
+z1 = u_pre[DOF * vi + 1, 0]
 y1 = u_pre[DOF * vi + 2, 0]
-z1 = u_pre[DOF * vi + 3, 0]
+x1 = u_pre[DOF * vi + 3, 0]
 a0.plot3D(x1, y1, z1, label="nb")
 a0.legend()
-a0.set_box_aspect(aspect=(1, 1, 1))
 
 # df1 = pd.DataFrame([node_data])
 # df1.loc[len(df1)] = u[DOF * vi + 5, 0] - 1
