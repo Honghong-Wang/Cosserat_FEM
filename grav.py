@@ -29,16 +29,19 @@ x = -np.linspace(0, max_load, LOAD_INCREMENTS)
 # l008 = -np.array([0.0, -0.0735444506539265, -0.14628405177442927, -0.21742569600700543, -0.28619956766556504, -0.35187031021510234, -0.41374762911345253, -0.4711961572500201, -0.5236444231006545]
 # )
 
-df = pd.read_csv('assets/one.csv')
-x = np.array([0.008, 0.007, 0.006, 0.005, 0.00])
-marker_ = ['^', '.', '+', "x", "none"]
+df = pd.read_csv('assets/two.csv')
+# x = np.array([0.008, 0.007, 0.006, 0.005, 0.00])
+x = np.array([0.05, 0.1, 0.2, 0.5, 0.8, 1])
+marker_ = ['none', '<', '>', "x", "1", "."]
 arr = df.to_numpy()
-for i in range(len(x) - 1):
-    axx.plot(df.columns, -arr[i, :], label=r"l = {cc}".format(cc=x[i]), marker=marker_[i])
-axx.plot(df.columns, -arr[-1, :], label=r"Classical", linestyle="dashed")
+for i in range(len(arr) - 1):
+    axx.plot(df.columns, arr[i + 1, :], label=r"l = {cc}".format(cc=x[i]), marker=marker_[i])
+axx.plot(df.columns, arr[0, :], label=r"Classical", linestyle="dashed")
 axx.legend(fontsize=20)
-axx.set_xlabel("Moment at free end", fontsize=25)
-axx.set_ylabel("Transverse tip displacement", fontsize=25)
+axx.set_xticklabels([])
+axx.set_title("Effect of the normalized length scale parameter on the normalized extensional strain of the rod \n under clamped-clamped boundary conditions", fontsize=18, fontweight="bold")
+axx.set_xlabel("Non dimensional distance", fontsize=25)
+axx.set_ylabel("Strain", fontsize=25)
 plt.show()
 
 

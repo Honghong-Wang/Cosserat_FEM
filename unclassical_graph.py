@@ -41,7 +41,7 @@ def fea(load_iter_, is_halt=False):
         s = sol.get_rotation_from_theta_tensor(u[-6: -3]) @ np.array([0, fapp__[load_iter_], 0])[:, None] * 0
         # FG[-12: -9] = s
         # Pure Bending
-        FG[-6, 0] = fapp__[load_iter_]
+        FG[-6, 0] = fapp__[load_iter_] * 0
         for elm in range(numberOfElements):
             n = icon[elm][1:]
             xloc = node_data[n][:, None]
@@ -87,9 +87,12 @@ def fea(load_iter_, is_halt=False):
         f[0: 3, 6: 9] = -sol.skew(s)
         KG[-12:, -12:] += f
         # dsf = tg - KG
-        for ibc in range(12):
-            sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
-        sol.impose_boundary_condition(KG, FG, -3, 0)
+        for ibc in range(6):
+            sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1.05 + u[5, 0]) * (ibc == 5))
+        for ibc in [-7]:
+            sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1.05 + u[-7, 0]) * (ibc == -7))
+        for ibc in [-8, -9, -10, -11, -12]:
+            sol.impose_boundary_condition(KG, FG, ibc, 0 + (-L + u[-10, 0]) * (ibc == -10))
         du = -sol.get_displacement_vector(KG, FG)
         residue_norm = np.linalg.norm(FG)
 
@@ -132,7 +135,7 @@ DOF = 12
 MAX_ITER = 60  # Max newton raphson iteration
 element_type = 2
 L = 1
-numberOfElements = 60
+numberOfElements = 100
 
 icon, node_data = sol.get_connectivity_matrix(numberOfElements, L, element_type)
 numberOfNodes = len(node_data)
@@ -148,7 +151,7 @@ nodesPerElement = element_type ** DIMENSIONS
 SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
-l0 = 0.00
+l0 = 1
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -190,7 +193,7 @@ Starting point
 """
 # u = np.zeros((numberOfNodes * DOF, 1))
 u[DOF * vi + 2, 0] = node_data
-u[DOF * vi + 5, 0] = 1
+u[DOF * vi + 5, 0] = 0
 residue_norm = 0
 increments_norm = 0
 # since rod is lying straight in E3 direction it's centerline will have these coordinates
@@ -217,7 +220,7 @@ Set load and load steps
 """
 max_load = 4.35
 # max_load = 30 * E0 * i0
-LOAD_INCREMENTS = 20  # Follower load usually needs more steps compared to dead or pure bending
+LOAD_INCREMENTS = 2  # Follower load usually needs more steps compared to dead or pure bending
 fapp__ = -np.linspace(0, max_load, LOAD_INCREMENTS)
 
 
@@ -257,7 +260,7 @@ def act(i):
     y0 = u[DOF * vi + 1, 0]
     x0 = u[DOF * vi + 2, 0]
     if np.isclose(abs(fapp__[i]), marker_).any():
-        print(u[-11, 0])
+        print(u[-12:, 0])
         displacements.append(u[-11, 0])
         xmax, ymax = max(xmax, np.max(x0)), max(np.max(y0), ymax)
         xmin, ymin = min(xmin, np.min(x0)), min(np.min(y0), ymin)
@@ -314,8 +317,26 @@ a1.set_title("STRAIN")
 # df2.loc[len(df2)] = u[DOF * vi + 2, 0] - node_data
 # df1.to_csv('GFG1.csv', index=False, header=False)
 # df2.to_csv('GFG2.csv', index=False, header=False)
+
+fig3, a00 = plt.subplots(1, 1, figsize=(9, 9))
+
+
+ETA = 0.05
+print(u[:, 0])
+print(u[DOF * vi + 5, 0] - 1)
+print(u[DOF * vi + 2, 0])
+print(node_data)
+
+a00.plot(node_data, u[DOF * vi + 5, 0] - 1, label="FEM")
+if l0 == 0:
+    l0 = l0 + 1
+a00.plot(node_data, ETA * (np.cosh((1 - 2 * node_data) / 2 / l0) - 2 * l0 * np.sinh(1 / 2 / l0)) / (np.cosh(1 / 2 / l0) - 2 * l0 * np.sinh(1 / 2 / l0)), label="ANALYTICAL")
+a00.legend()
+a00.set_title("STRAIN")
+
 plt.show()
 print(max_load * L / GA / 2, u[-12:])
 print(displacements[1:])
-df = pd.DataFrame(fapp__[None, :])
-df.to_csv('assets/one.csv', mode='a', index=False, header=False)
+node_data = np.round(node_data, 2)
+df = pd.DataFrame(u[DOF * vi + 5, 0][None, :] - 1)
+df.to_csv('assets/two.csv', mode='a', index=False, header=False)
