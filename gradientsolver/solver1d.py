@@ -358,12 +358,13 @@ MATERIAL STIFFNESS
 """
 
 
-def c_full(es, eb, hes, heb):
+def c_full(es, eb, hes, heb, coupler=None):
     """
     :param es: standard stretch stiffness
     :param eb: standard bending stiffness
     :param hes: higher order stretch stiffness
     :param heb: higher order bending stiffness
+    :param coupler: coupling
     :return: c_full (refer to notes)
     """
     c = np.zeros((12, 12))
@@ -371,7 +372,9 @@ def c_full(es, eb, hes, heb):
     c[3: 6, 3: 6] = hes
     c[6: 9, 6: 9] = eb
     c[9: 12, 9: 12] = heb
-    return c
+    if not coupler:
+        return c
+    return c + coupler
 
 
 def d_u(hes, heb):
@@ -602,7 +605,7 @@ def matnm(n, nb, m, mb):
 """
 
 
-def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs, cb, ds, db, kvec, dof, gloc, element_type=2):
+def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs, cb, ds, db, kvec, dof, gloc, element_type=2, coupler=None):
     nmat, nbmat, mmat, mbmat = gloc[0: 3], gloc[3: 6], gloc[6: 9], gloc[9: 12]
     f = dof * element_type
     k = np.zeros((f, f))
@@ -621,7 +624,7 @@ def get_higher_order_tangent_residue(n_, nx_, nxx_, rds, rdsds, rmat, rmatds, cs
             E_gj = e_g(hj, hj_, hj__, rds, rdsds)
             E_fj = e_f(hj_, hj__)
             A1 = Ei @ matnm(nmat, nbmat, mmat, mbmat) @ Hmatj
-            A2 = Ei @ pi(rmat) @ c_full(cs, cb, ds, db) @ pi(rmat).T @ Ej.T
+            A2 = Ei @ pi(rmat) @ c_full(cs, cb, ds, db, coupler) @ pi(rmat).T @ Ej.T
             A3 = Ei @ pi_l(rmat) @ d_l(ds, db) @ pi_lds(rmatds).T @ E_lj
             A4 = Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(ds, db) @ pi_uds(rmatds).T @ E_uj
             A5 = Ei @ pi_u(rmat) @ k_u(kvec) @ d_u(ds, db) @ pi_u(rmat).T @ E_gj
