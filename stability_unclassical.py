@@ -208,7 +208,7 @@ GA = 1.6 * 10 ** 8
 mul = 1000
 alpha = 10000
 exmul = 1
-max_load = 1560
+max_load = 80
 # ElasticityExtension = np.array([[G0 * A, 0, 0],
 #                                 [0, G0 * A, 0],
 #                                 [0, 0, E0 * A]])
@@ -225,9 +225,9 @@ max_load = 1560
 ElasticityExtension = exmul * mul * np.array([[1, 0, 0],
                                               [0, 1, 0],
                                               [0, 0, 1]])
-ElasticityBending = np.array([[alpha + l0 ** 2 * mul, 0, 0],
-                              [0, 1 + mul * l0 ** 2, 0],
-                              [0, 0, 1 + mul * 2 * l0 ** 2]])
+ElasticityBending = np.array([[alpha , 0, 0],
+                              [0, 1 + 0*mul * l0 ** 2, 0],
+                              [0, 0, 1 +0* mul * 2 * l0 ** 2]])
 ElasticityExtensionH = l0 ** 2 * ElasticityExtension
 ElasticityBendingH = l0 ** 2 * np.array([[alpha, 0, 0],
                                          [0, 1, 0],
@@ -297,9 +297,9 @@ ax.plot(r3, r2, label="un-deformed", marker="o")
 Set load and load steps
 """
 # max_load = 2 * np.pi * E0 * i0 / L
-#fapp__ = np.linspace(0, max_load, LOAD_INCREMENTS)
-fapp__ = np.linspace(1540, max_load, LOAD_INCREMENTS - 20)
-fapp__ = np.hstack((np.linspace(0, 1540, 20), fapp__))
+fapp__ = np.linspace(0, max_load, LOAD_INCREMENTS)
+#fapp__ = np.linspace(1540, max_load, LOAD_INCREMENTS - 20)
+#fapp__ = np.hstack((np.linspace(0, 1540, 20), fapp__))
 
 marker_ = fapp__
 # marker_ = np.insert(marker_, 0, [2000, 6000, 12000], axis=0)
