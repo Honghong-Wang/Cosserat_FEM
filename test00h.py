@@ -10,8 +10,7 @@ from scipy import linalg as la
 from include import slerp as slerpsol, quaternion_smith as quat_sol
 import matplotlib.pyplot as plt
 from include.AnimationController import ControlledAnimation
-import matplotlib
-matplotlib.use('Qt5Agg')
+
 try:
     import scienceplots
 
@@ -100,8 +99,8 @@ def fea(load_iter_, is_halt=False):
         # dsf = tg - KG
         for ibc in range(12):
             sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
-        for ibc in [-12, -11, -9, -8, -6, -5, -4, -3, -2, -1]:
-            sol.impose_boundary_condition(KG, FG, ibc, 0)
+        for ibc in [-12, -11, -9, -8, -6, -5, -4, -3, -2, -7]:
+            sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[-7, 0]) * (ibc == -7))
         # sol.impose_boundary_condition(KG, FG, -3, 0)
 
         du = -sol.get_displacement_vector(KG, FG)
@@ -197,8 +196,8 @@ SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
 
-l0 = 0.0
-LOAD_INCREMENTS = 11  # Follower load usually needs more steps compared to dead or pure bending
+l0 = 0.
+LOAD_INCREMENTS = 121  # Follower load usually needs more steps compared to dead or pure bending
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -210,30 +209,30 @@ GA = 1.6 * 10 ** 8
 mul = 1
 alpha = 1
 exmul = 1
-max_load = 40
-# ElasticityExtension = np.array([[G0 * A, 0, 0],
-#                                 [0, G0 * A, 0],
-#                                 [0, 0, E0 * A]])
-# ElasticityBending = np.array([[alpha * E0 * i0 + l0 ** 2 * E0 * A, 0, 0],
-#                               [0, E0 * i0 + l0 ** 2 * E0 * A, 0],
-#                               [0, 0, G0 * J + 2 * l0 ** 2 * G0 * A]])
-#
-# ElasticityExtensionH = l0 ** 2 * np.array([[G0 * A, 0, 0],
-#                                            [0, G0 * A, 0],
-#                                            [0, 0, E0 * A]])
-# ElasticityBendingH = np.array([[alpha * E0 * i0 * l0 ** 2, 0, 0],
-#                                [0, E0 * i0 * l0 ** 2, 0],
-#                                [0, 0, G0 * J * l0 ** 2]])
-ElasticityExtension = exmul * mul * np.array([[1, 0, 0],
-                                              [0, 1, 0],
-                                              [0, 0, 1]])
-ElasticityBending = np.array([[alpha, 0, 0],
-                              [0, 1 + 0 * mul * l0 ** 2, 0],
-                              [0, 0, 1 + 0 * mul * 2 * l0 ** 2]])
-ElasticityExtensionH = l0 ** 2 * ElasticityExtension
-ElasticityBendingH = l0 ** 2 * np.array([[alpha, 0, 0],
-                                         [0, 1, 0],
-                                         [0, 0, 1]])
+max_load = 100
+ElasticityExtension = np.array([[G0 * A, 0, 0],
+                                [0, G0 * A, 0],
+                                [0, 0, E0 * A]])
+ElasticityBending = np.array([[alpha * E0 * i0 + l0 ** 2 * E0 * A, 0, 0],
+                              [0, E0 * i0 + l0 ** 2 * E0 * A, 0],
+                              [0, 0, G0 * J + 2 * l0 ** 2 * G0 * A]])
+
+ElasticityExtensionH = l0 ** 2 * np.array([[G0 * A, 0, 0],
+                                           [0, G0 * A, 0],
+                                           [0, 0, E0 * A]])
+ElasticityBendingH = np.array([[alpha * E0 * i0 * l0 ** 2, 0, 0],
+                               [0, E0 * i0 * l0 ** 2, 0],
+                               [0, 0, G0 * J * l0 ** 2]])
+# ElasticityExtension = exmul * mul * np.array([[1, 0, 0],
+#                                               [0, 1, 0],
+#                                               [0, 0, 1]])
+# ElasticityBending = np.array([[alpha, 0, 0],
+#                               [0, 1 + 0 * mul * l0 ** 2, 0],
+#                               [0, 0, 1 + 0 * mul * 2 * l0 ** 2]])
+# ElasticityExtensionH = l0 ** 2 * ElasticityExtension
+# ElasticityBendingH = l0 ** 2 * np.array([[alpha, 0, 0],
+#                                          [0, 1, 0],
+#                                          [0, 0, 1]])
 print(ElasticityExtension)
 print(ElasticityBending)
 print(ElasticityBendingH)
@@ -398,4 +397,6 @@ a0.legend()
 plt.show()
 print("Buckling load for l = 0 : ", 4.013 / L / L * np.sqrt(ElasticityBending[1, 1] * ElasticityBending[2, 2]))
 print(u[-12:, 0])
+print(L - u[-12:, 0])
 print(-L * fapp__[-1] / ElasticityExtension[2, 2] + L)
+print(max_load / ElasticityExtension[2, 2] * (node_data + l0 * np.sinh((1 - 2 * node_data) / 2 / l0) / (np.cosh(1 / 2 / l0)) - l0 * np.tanh(1 / 2 / l0)))
