@@ -99,8 +99,8 @@ def fea(load_iter_, is_halt=False):
         # dsf = tg - KG
         for ibc in range(12):
             sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[5, 0]) * (ibc == 5))
-        #for ibc in [-12, -11]:
-         #   sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[-7, 0]) * (ibc == -7))
+        for ibc in [-6, -5, -4, -12, -11]:
+            sol.impose_boundary_condition(KG, FG, ibc, 0 + (-1 + u[-7, 0]) * (ibc == -7))
         # sol.impose_boundary_condition(KG, FG, -3, 0)
 
         du = -sol.get_displacement_vector(KG, FG)
@@ -197,8 +197,8 @@ SET MATERIAL PROPERTIES
 -----------------------------------------------------------------------------------------------------------------------
 """
 
-l0 = 0.0001
-LOAD_INCREMENTS = 51  # Follower load usually needs more steps compared to dead or pure bending
+l0 = 0.2
+LOAD_INCREMENTS = 121  # Follower load usually needs more steps compared to dead or pure bending
 E0 = 10 ** 8
 G0 = E0 / 2.0
 d = 1 / 1000 * 25.0
@@ -208,9 +208,9 @@ J = i0 * 2
 EI = 3.5 * 10 ** 7
 GA = 1.6 * 10 ** 8
 mul = 1000
-alpha = 1
+alpha = 10000
 exmul = 1
-max_load = 25
+max_load = 240
 # ElasticityExtension = np.array([[G0 * A, 0, 0],
 #                                 [0, G0 * A, 0],
 #                                 [0, 0, E0 * A]])
